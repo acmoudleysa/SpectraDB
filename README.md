@@ -1,6 +1,3 @@
-Here's a concise and informative README file for your new repository, including suggestions for the repo name and a summary of the ideas you're working on.
-
----
 
 # **SpectraDB: A Lightweight Spectroscopic Data Manager**
 
