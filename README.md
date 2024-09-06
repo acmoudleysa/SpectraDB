@@ -1,28 +1,38 @@
-
 # **SpectraDB: A Lightweight Spectroscopic Data Manager**
 
-## Overview
-**SpectraDB** is a lightweight SQLite-based tool designed to manage and store high-dimensional spectroscopic data (2D fluorescence, FTIR, NMR, etc.) efficiently. The focus is on using relational and JSON-based storage techniques to avoid redundancy while keeping data easily accessible for analysis and visualization.
+## Introduction
+In many labs, data from instruments like FTIR, fluorescence, or NMR are saved as individual files (often in strange formats) and scattered across different folders. This can quickly lead to a cluttered system that’s hard to manage and search through. 
+
+**SpectraDB** is designed to simplify this process by letting you store all your spectroscopic data in a single, organized SQLite database. Each type of spectroscopic data gets a unique `spec_id`, and every sample is given a `sample_id`. This means you can easily search and retrieve any analysis for any sample without digging through endless folders of files.
+
+## How It Works (in Simple Terms)
+
+1. **Collect Data from Instruments**:
+   - After running a sample on an instrument (like FTIR or NMR), you typically copy the data file onto your computer. The file might be in an unusual format specific to the instrument, but don’t worry—**SpectraDB** handles that for you.
+
+2. **Add the Data to SpectraDB**:
+   - You can use built-in functionality to add the data to the database. SpectraDB will convert the raw file (whatever format it's in) into a format that’s easy to work with, and then store it in an SQLite database.
+   - Along with the spectroscopic data, you’ll also be able to store metadata like `sample_id`, `spec_id`, experiment details, and anything else you want to track.
+
+3. **Avoid Duplicates**:
+   - SpectraDB is smart! It checks if the same sample and analysis already exist in the database, so you won’t accidentally store duplicate data. This helps keep things tidy.
+
+4. **Query the Data Easily**:
+   - Once your data is in the database, you can search by **sample** (using `sample_id`) to see what spectroscopic techniques have been run on that sample, or search by **spectroscopy type** (using `spec_id`) to pull all the relevant data for a particular technique (e.g., all FTIR results).
+   - No more hunting through folders—just run a query, and you get what you need.
+
+5. **What You Can Do Next**:
+   - After pulling the data, you can visualize it, analyze trends, or run further processing as needed. You have all the information in one place!
 
 ## Key Features
-- **Efficient Storage**: Spectroscopic data (wavelength-intensity pairs) stored in a combination of relational tables and JSON, reducing redundancy and optimizing storage space.
-- **Metadata Management**: Automatic de-duplication of metadata to prevent inserting duplicate samples.
-- **Normalization**: Wavelength data is stored separately to avoid redundancy across experiments.
-- **Scalability**: Suitable for small to medium datasets, with flexibility to scale or migrate to more advanced databases like PostgreSQL if needed.
+- **Centralized Storage**: All spectroscopic data is stored in one SQLite database, making it easy to manage and search.
+- **Automatic Conversion**: Raw data files from instruments are automatically converted to usable formats and stored efficiently in the database.
+- **Unique IDs**: Each spectroscopic file gets a `spec_id`, and each sample gets a `sample_id`, allowing for simple and quick queries.
+- **Duplicate Checks**: Built-in checks prevent duplicate entries, ensuring clean and organized data.
+- **Query Flexibility**: Search by sample or spectroscopy type, and get a complete view of your data without hassle.
 
 ## Project Ideas
-1. **SQLite Schema Setup**:
-   - Create relational tables for metadata (`sample_id`, `experiment_id`, `spec_id`).
-   - Store wavelengths in a normalized table, with intensity data stored as JSON.
-
-2. **Automated Metadata De-duplication**:
-   - Implement logic to check for duplicate `experiment_id` and `spec_id` before inserting new data.
-
-3. **Data Insertion and Retrieval**:
-   - Develop functions to easily insert new spectroscopic data, including parsing and storing wavelength-intensity pairs.
-   - Create efficient retrieval functions to load full spectroscopic datasets for analysis or visualization.
-
-4. **Future Extensions**:
-   - Add support for handling larger datasets by migrating to PostgreSQL or BigQuery if required.
-   - Build a simple **dashboard** (using Dash or Streamlit) for querying, visualizing, and analyzing spectroscopic data.
-   - Introduce basic **data cleaning** and **preprocessing** functionalities, such as baseline correction or noise filtering.
+- Organize all your data in one place by converting raw instrument data into a database-friendly format.
+- Query data based on sample (`sample_id`) to see all the spectroscopic analyses performed on that sample.
+- Query based on spectroscopy type (`spec_id`) to retrieve specific data (e.g., only FTIR results).
+- Visualize and analyze the data after retrieval for further insights.
