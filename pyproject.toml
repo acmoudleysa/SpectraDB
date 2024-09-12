@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "SpectraDB"
+version = "0.1.0"
+description = ""
+authors = ["Amulya Baniya"]
+readme = "README.md"
+packages = [{ include = "spectradb" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
