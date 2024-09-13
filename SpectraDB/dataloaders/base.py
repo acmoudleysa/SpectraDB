@@ -98,7 +98,7 @@ class BaseDataLoader(ABC):
 
 
 def metadata_template(filepath: str, 
-                      sample_name: str, 
+                      sample_name: Optional[str] = "NA",
                       internal_code: Optional[str] = "NA", 
                       collected_by: Optional[str] = "NA", 
                       comments: Optional[str] = "NA",

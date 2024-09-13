@@ -63,7 +63,7 @@ class FluorescenceDataLoader(BaseDataLoader):
 
             # Using metadata template function to create the metadata entry
             self.metadata[sample_id] = metadata_template(
-                filepath=str(self.filepath),
+                filepath=self.filepath,
                 sample_name=sample,
                 signal_metadata={
                     "Excitation": np.array(ex_wl, dtype=int).tolist(),
@@ -82,8 +82,7 @@ class FluorescenceDataLoader(BaseDataLoader):
         """
         data = list()
         for sample_id, metadata in self.metadata.items(): 
-            metadata.update({"Data": self.data[sample_id]})
-            data.append(metadata)
+            data.append(metadata | {"Data": self.data[sample_id]})
             
         self._df = pd.DataFrame(data, 
                             columns=["Filename", 
@@ -167,9 +166,95 @@ class FluorescenceDataLoader(BaseDataLoader):
 
 @dataclass
 class FTIRDataLoader(BaseDataLoader): 
-    pass
+    instrument_id: ClassVar[InstrumentID] = InstrumentID.FTIR.value
+
+    def __post_init__(self): 
+        super().__post_init__()
+        self.validate_data()
+        self.load_data()
+
+    def load_data(self) -> Dict:
+        with open(self.filepath, "rb") as file:   # reading in binary 
+            # spectrum resolution  
+            file.seek(564)
+            num_wn_points = np.fromfile(file, np.int32, 1)[0]
+            
+            # fetching the max and min wavenumbers
+            file.seek(576)
+            wavenumbers_max = np.fromfile(file, np.float32, 1)[0]
+            wavenumbers_min = np.fromfile(file, np.float32, 1)[0]
+
+            # Finding the place where the intensity starts 
+            file.seek(288)
+            _check = 0 
+            while _check !=3: 
+                _check = np.fromfile(file, np.uint16, 1)[0]
+
+            # Locate the intensity position
+            file.seek(np.fromfile(file, np.uint16, 1)[0])
+            self.data = np.fromfile(file, np.float32, num_wn_points).tolist()
+
+            self.metadata = metadata_template(
+                filepath=self.filepath,
+                signal_metadata={
+                    "Wavenumbers": np.linspace(wavenumbers_min, wavenumbers_max, num_wn_points)[::-1].astype(int).tolist()
+                }
+            )
+
+        print(self)
 
 
+    def _create_dataframe(self) -> pd.DataFrame:
+        """
+        Create a pandas DataFrame from the loaded fluorescence data.
+        """
+        data = list() 
+        data.append(self.metadata | {"Data": self.data})
+        self._df = pd.DataFrame(data, 
+                            columns=["Filename", 
+                                     "Measurement Date", 
+                                     "Sample name", 
+                                     "Internal sample code", 
+                                     "Collected by", 
+                                     "Comments", 
+                                     "Data", 
+                                     "Signal Metadata"], 
+                            index=pd.Index(["S1"]))
+        return self._df
+    
+    
+    def add_metadata(self,  
+                     sample_name: Optional[str] = None, 
+                     internal_code: Optional[str] = None, 
+                     collected_by: Optional[str] = None, 
+                     comments: Optional[str] = None):
+        """
+        Add or update metadata for a given sample identifier.
+        """
+        if sample_name is not None:
+            self.metadata['Sample name'] = sample_name
+        if internal_code is not None:
+            self.metadata['Internal sample code'] = internal_code
+        if collected_by is not None:
+            self.metadata['Collected by'] = collected_by
+        if comments is not None:
+            self.metadata['Comments'] = comments
+
+    
+    def validate_data(self):
+        if self.filepath.suffix.lower() != ".spa": 
+            raise ValueError("Invalid file extension! Make sure the data being fed has extension .spa")
+
+    def __str__(self):
+        """
+        String representation of the object, showing sample IDs and their corresponding names in a table format with borders.
+        """
+        return f"Data generated from FTIR spectrometer\nFile: {self.filepath.stem}"
+    
+    @property
+    def df(self): 
+        return self._create_dataframe()
+    
 @dataclass
 class NMRDataLoader(BaseDataLoader): 
     pass
