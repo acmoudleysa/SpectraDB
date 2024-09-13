@@ -1,7 +1,9 @@
 from .utils import (
-    contourplot
+    contourplot, 
+    spectrum
 )
 
 __all__= [
-    "contourplot"
+    "contourplot",
+    "spectrum"
 ]
