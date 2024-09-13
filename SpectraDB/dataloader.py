@@ -59,7 +59,7 @@ class FluorescenceDataLoader(BaseDataLoader):
                 idx, ex_wl = zip(*[[i+1, wavelengths.split("_EX_")[-1].split(".")[0]]
                                 for i, wavelengths in enumerate(df.columns) if sample + "_EX_" in wavelengths])
             else:
-                idx = (i for i, _ in enumerate(df.columns) if sample + "_EX_" in _)
+                idx = [i+1 for i, _ in enumerate(df.columns) if sample + "_EX_" in _]
 
             # Using metadata template function to create the metadata entry
             self.metadata[sample_id] = metadata_template(
@@ -93,9 +93,20 @@ class FluorescenceDataLoader(BaseDataLoader):
                                      "Collected by", 
                                      "Comments", 
                                      "Data", 
-                                     "Signal Metadata"])
-        
+                                     "Signal Metadata"], 
+                            index=self.metadata.keys())
         return self._df
+
+
+    def delete_measurement(self,
+                            identifier:str):
+        """
+        Method to delete a measurement using identifier name
+        """
+        if identifier not in self.metadata:
+            raise KeyError(f"Sample identifier '{identifier}' not found.")
+        
+        del self.metadata[identifier], self.data[identifier], self._sample_id_map[identifier]
 
     def add_metadata(self,  
                      identifier: str, 
