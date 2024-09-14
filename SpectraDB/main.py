@@ -4,6 +4,7 @@ from spectradb.dataloaders import FTIRDataLoader, FluorescenceDataLoader, NMRDat
 from typing import Union
 from pathlib import Path
 from spectradb.types import DataLoaderType, DataLoaderIterable
+from contextlib import contextmanager
 
 def create_entries(obj): 
     """
@@ -20,7 +21,7 @@ def create_entries(obj):
         "signal_metadata": json.dumps(obj.metadata["Signal Metadata"])
     }
 
-class DataBase: 
+class Database: 
     """
     Spectroscopic SQLite database handler.
     """
@@ -28,30 +29,59 @@ class DataBase:
     def __init__(self, 
                  database: Union[Path, str], 
                  table_name: str = "Measurements"
-                 ) -> None: 
-        self.connection = sqlite3.connect(database)
+                 ) -> None:
+        self.database = database
         self.table_name = table_name
-        self.__create_table()
+        self._connection = None
+
         
-    def __create_table(self): 
+    def __enter__(self): 
+        self._connection = sqlite3.connect(self.database)
+        self.__create_table()
+        return self 
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._connection: 
+            self._connection.close() 
+
+        self._connection = None
+
+    @contextmanager
+    def _get_cursor(self):
+        """Context manager for database transactions."""
+        if not self._connection:
+            raise RuntimeError("Database connection is not established. Use 'with' statement.")
+        
+        cursor = self._connection.cursor()
+        try:
+            yield cursor
+
+        except Exception as e:
+            self._connection.rollback()
+            raise e
+        finally:
+            cursor.close()
+
+
+    def __create_table(self) -> None:
         """
         Creates a table in the SQLite database if it does not already exist.
         """
-        self.connection.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS {self.table_name} (
-                measurement_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                instrument_id TEXT, 
-                measurement_date TEXT, 
-                sample_name TEXT, 
-                internal_code TEXT, 
-                collected_by TEXT, 
-                comments TEXT, 
-                data TEXT,           
-                signal_metadata TEXT 
-            )
-            """
+        query = f"""
+        CREATE TABLE IF NOT EXISTS {self.table_name} (
+            measurement_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            instrument_id TEXT,
+            measurement_date TEXT,
+            sample_name TEXT,
+            internal_code TEXT,
+            collected_by TEXT,
+            comments TEXT,
+            data TEXT,
+            signal_metadata TEXT
         )
+        """
+        with self._get_cursor() as cursor:
+            cursor.execute(query)
 
     def add_sample(
             self, 
@@ -66,25 +96,24 @@ class DataBase:
             obj: A data loader object or iterable of data loader objects.
             commit: Whether to commit immediately.
         """
-        if isinstance(obj, (FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader)): 
-            obj = [obj] 
+        if isinstance(obj, (FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader)):
+            obj = [obj]
 
         entries = map(create_entries, obj)
-        
-        self.connection.executemany(
-            f"""
-            INSERT INTO {self.table_name} (
-                instrument_id, measurement_date, sample_name, 
-                internal_code, collected_by, comments, 
-                data, signal_metadata
-            ) VALUES (
-                :instrument_id, :measurement_date, :sample_name, 
-                :internal_code, :collected_by, :comments, 
-                :data, :signal_metadata
-            )
-            """, 
-            entries
-        )
 
-        if commit: 
-            self.connection.commit()
+        query = f"""
+        INSERT INTO {self.table_name} (
+            instrument_id, measurement_date, sample_name,
+            internal_code, collected_by, comments,
+            data, signal_metadata
+        ) VALUES (
+            :instrument_id, :measurement_date, :sample_name,
+            :internal_code, :collected_by, :comments,
+            :data, :signal_metadata
+        )
+        """
+
+        with self._get_cursor() as cursor:
+            cursor.executemany(query, entries)
+            if commit:
+                self._connection.commit()

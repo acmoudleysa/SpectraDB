@@ -12,10 +12,10 @@ class InstrumentID(Enum):
     """
     Enum class that stores the id of the instruments
     """
-    FTIR = "INS_1"
-    NMR = "INS_2"
-    Fluorescence = "INS_3"
-    GC = "INS_4"
+    FTIR = "FTIR"
+    NMR = "NMR"
+    Fluorescence = "FL"
+    GC = "GC"
 
 
 @dataclass(slots=True)
