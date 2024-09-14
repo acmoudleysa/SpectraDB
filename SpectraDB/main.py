@@ -5,6 +5,8 @@ from typing import Union
 from pathlib import Path
 from spectradb.types import DataLoaderType, DataLoaderIterable
 from contextlib import contextmanager
+from datetime import datetime
+from sqlite3 import IntegrityError
 
 def create_entries(obj): 
     """
@@ -18,7 +20,8 @@ def create_entries(obj):
         "collected_by": obj.metadata["Collected by"], 
         "comments": obj.metadata["Comments"], 
         "data": json.dumps(obj.data), 
-        "signal_metadata": json.dumps(obj.metadata["Signal Metadata"])
+        "signal_metadata": json.dumps(obj.metadata["Signal Metadata"]), 
+        "date_added": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 
 class Database: 
@@ -56,6 +59,19 @@ class Database:
         try:
             yield cursor
 
+        except sqlite3.IntegrityError:
+            print(
+                "⚠️ **Duplicate Entry Detected**\n\n"
+                "The data you’re trying to add already exists in the database.\n\n"
+                "Please check:\n"
+                "- **Instrument ID**\n"
+                "- **Sample Name**\n"
+                "- **Internal Sample Code**\n\n"
+                "Ensure these fields are unique and try again. Thank you!"
+            )
+
+            self._connection.rollback()
+
         except Exception as e:
             self._connection.rollback()
             raise e
@@ -77,7 +93,9 @@ class Database:
             collected_by TEXT,
             comments TEXT,
             data TEXT,
-            signal_metadata TEXT
+            signal_metadata TEXT, 
+            date_added TEXT, 
+            UNIQUE(instrument_id, sample_name, comments)
         )
         """
         with self._get_cursor() as cursor:
@@ -105,15 +123,28 @@ class Database:
         INSERT INTO {self.table_name} (
             instrument_id, measurement_date, sample_name,
             internal_code, collected_by, comments,
-            data, signal_metadata
+            data, signal_metadata, date_added
         ) VALUES (
             :instrument_id, :measurement_date, :sample_name,
             :internal_code, :collected_by, :comments,
-            :data, :signal_metadata
+            :data, :signal_metadata, :date_added
         )
         """
-
         with self._get_cursor() as cursor:
             cursor.executemany(query, entries)
             if commit:
                 self._connection.commit()
+
+
+    def open_connection(self) -> None:
+        """Open a connection to the database."""
+        if self._connection is not None:
+            raise RuntimeError("Connection is already open.")
+        self._connection = sqlite3.connect(self.database)
+        self.__create_table()
+
+    def close_connection(self) -> None:
+        """Close the database connection."""
+        if self._connection:
+            self._connection.close()
+            self._connection = None
