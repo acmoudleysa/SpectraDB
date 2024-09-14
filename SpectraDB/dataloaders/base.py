@@ -45,6 +45,8 @@ class BaseDataLoader(ABC):
         if not isinstance(self.filepath, (str, Path)):
             raise TypeError(f"Expected filepath to be of type str or Path, got {type(self.filepath).__name__}")
         self.filepath = Path(self.filepath)
+        self.validate_data()
+        self.load_data()
 
     @abstractmethod
     def load_data(self) -> Dict:

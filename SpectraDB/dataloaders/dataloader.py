@@ -32,13 +32,10 @@ class FluorescenceDataLoader(BaseDataLoader):
         """
         Called automatically after the class is initialized.
 
-        This method calls the parent class's `__post_init__` method, validates the data 
-        to ensure it's in the correct format, and loads the data from the CSV file.
+        This method calls the parent class's `__post_init__` method.
         """
         super(FluorescenceDataLoader, self).__post_init__()   # Check this https://docs.python.org/3/library/dataclasses.html
-          # Dictionary to store sample name -> ID mapping
-        self.validate_data()
-        self.load_data()
+
 
     def load_data(self) -> Dict:
         """
@@ -171,8 +168,6 @@ class FTIRDataLoader(BaseDataLoader):
 
     def __post_init__(self): 
         super(FTIRDataLoader, self).__post_init__()
-        self.validate_data()
-        self.load_data()
 
     def load_data(self) -> Dict:
         with open(self.filepath, "rb") as file:   # reading in binary 
