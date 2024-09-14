@@ -1,12 +1,13 @@
 from typing import Dict
 import pandas as pd
 from spectradb.dataloaders.base import BaseDataLoader, InstrumentID, metadata_template
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Optional
 import numpy as np 
 
 
-@dataclass
+
+@dataclass(slots=True)
 class FluorescenceDataLoader(BaseDataLoader): 
     """
     Dataclass for loading and managing fluorescence data.
@@ -26,7 +27,7 @@ class FluorescenceDataLoader(BaseDataLoader):
     """
 
     instrument_id: ClassVar[InstrumentID] = InstrumentID.Fluorescence.value
-
+    _sample_id_map: dict = field(init=False, default_factory=dict)
     def __post_init__(self):
         """
         Called automatically after the class is initialized.
@@ -34,8 +35,8 @@ class FluorescenceDataLoader(BaseDataLoader):
         This method calls the parent class's `__post_init__` method, validates the data 
         to ensure it's in the correct format, and loads the data from the CSV file.
         """
-        super().__post_init__()
-        self._sample_id_map = {}  # Dictionary to store sample name -> ID mapping
+        super(FluorescenceDataLoader, self).__post_init__()   # Check this https://docs.python.org/3/library/dataclasses.html
+          # Dictionary to store sample name -> ID mapping
         self.validate_data()
         self.load_data()
 
@@ -164,12 +165,12 @@ class FluorescenceDataLoader(BaseDataLoader):
 
 
 
-@dataclass
+@dataclass(slots=True)
 class FTIRDataLoader(BaseDataLoader): 
     instrument_id: ClassVar[InstrumentID] = InstrumentID.FTIR.value
 
     def __post_init__(self): 
-        super().__post_init__()
+        super(FTIRDataLoader, self).__post_init__()
         self.validate_data()
         self.load_data()
 
@@ -254,6 +255,7 @@ class FTIRDataLoader(BaseDataLoader):
     @property
     def df(self): 
         return self._create_dataframe()
+
     
 @dataclass
 class NMRDataLoader(BaseDataLoader): 

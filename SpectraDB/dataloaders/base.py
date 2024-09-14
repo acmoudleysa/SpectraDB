@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 from datetime import datetime
 import os
 
@@ -18,7 +18,7 @@ class InstrumentID(Enum):
     GC = "INS_4"
 
 
-@dataclass
+@dataclass(slots=True)
 class BaseDataLoader(ABC):
     """
     Abstract base class for data loaders.
@@ -95,6 +95,11 @@ class BaseDataLoader(ABC):
             pd.DataFrame: The DataFrame representation of the data.
         """
         pass
+
+    def to_csv(self,
+               path: Union[str, Path] = None) -> None: 
+        path = path or self.filepath
+        self._df.to_csv(path)
 
 
 def metadata_template(filepath: str, 
