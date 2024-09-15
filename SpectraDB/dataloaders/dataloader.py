@@ -243,7 +243,7 @@ class FTIRDataLoader(BaseDataLoader):
 
     def __str__(self):
         """
-        String representation of the object, showing sample IDs and their corresponding names in a table format with borders.
+        String representation of the object
         """
         return f"Data generated from FTIR spectrometer\nFile: {self.filepath.stem}"
     

@@ -91,8 +91,16 @@ class Database:
         Creates a table in the SQLite database if it does not already exist.
         """
         query = f"""
+
+        CREATE TABLE IF NOT EXISTS instrument_sample_count (
+        instrument_type TEXT PRIMARY KEY,
+        counter INTEGER DEFAULT 0
+        );
+
+
         CREATE TABLE IF NOT EXISTS {self.table_name} (
             measurement_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sample_id TEXT, 
             instrument_id TEXT,
             measurement_date TEXT,
             sample_name TEXT,
@@ -103,10 +111,23 @@ class Database:
             signal_metadata TEXT, 
             date_added TEXT, 
             UNIQUE(instrument_id, sample_name, comments)
-        )
+        );
+
+        CREATE TRIGGER IF NOT EXISTS generate_sample_id
+        AFTER INSERT ON {self.table_name}
+        BEGIN
+            UPDATE instrument_sample_count
+            SET counter = counter + 1
+            WHERE instrument_type = NEW.instrument_id;
+            
+            UPDATE {self.table_name}
+            SET sample_id = NEW.instrument_id || '_' || (SELECT counter FROM instrument_sample_count WHERE instrument_type = NEW.instrument_id)
+            WHERE rowid = NEW.rowid;
+        END;
+
         """
         with self._get_cursor() as cursor:
-            cursor.execute(query)
+            cursor.executescript(query)
 
 
     def add_sample(
@@ -139,7 +160,12 @@ class Database:
                     
         entries = map(create_entries, obj)
 
-        query = f"""
+        query1 = """
+
+        INSERT OR IGNORE INTO instrument_sample_count (instrument_type, counter
+        ) VALUES (?, 0)
+        """
+        query2 = f"""
         INSERT INTO {self.table_name} (
             instrument_id, measurement_date, sample_name,
             internal_code, collected_by, comments,
@@ -151,7 +177,12 @@ class Database:
         )
         """
         with self._get_cursor() as cursor:
-            cursor.executemany(query, entries)
+            cursor.executemany(query1, [(inst_ins.instrument_id,) for inst_ins in obj])
+            if commit:
+                self._connection.commit()
+
+        with self._get_cursor() as cursor:
+            cursor.executemany(query2, entries)
             if commit:
                 self._connection.commit()
 

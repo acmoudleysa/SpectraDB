@@ -16,6 +16,7 @@ class InstrumentID(Enum):
     NMR = "NMR"
     Fluorescence = "FL"
     GC = "GC"
+    RAMAN = "RAMAN"
 
 
 @dataclass(slots=True)
