@@ -12,7 +12,7 @@ In many labs, data from instruments like FTIR, fluorescence, or NMR are saved as
 
 2. **Add the Data to SpectraDB**:
    - You can use built-in functionality to add the data to the database. SpectraDB will convert the raw file (whatever format it's in) into a format that’s easy to work with, and then store it in an SQLite database.
-   - Along with the spectroscopic data, you’ll also be able to store metadata like `sample_id`, `spec_id`, experiment details, and anything else you want to track.
+   - Along with the spectroscopic data, you’ll also be able to store metadata like `measurement_id`, `instrument_id`, experiment details, and anything else you want to track.
 
 3. **Avoid Duplicates**:
    - SpectraDB is smart! It checks if the same sample and analysis already exist in the database, so you won’t accidentally store duplicate data. This helps keep things tidy.
