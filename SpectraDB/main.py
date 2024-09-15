@@ -1,12 +1,13 @@
 import sqlite3
 import json
 from spectradb.dataloaders import FTIRDataLoader, FluorescenceDataLoader, NMRDataLoader
-from typing import Union
+from typing import Union, List
 from pathlib import Path
 from spectradb.types import DataLoaderType, DataLoaderIterable
 from contextlib import contextmanager
 from datetime import datetime
 from sqlite3 import IntegrityError
+from dataclasses import dataclass
 
 def create_entries(obj): 
     """
@@ -61,13 +62,19 @@ class Database:
 
         except sqlite3.IntegrityError:
             print(
-                "⚠️ **Duplicate Entry Detected**\n\n"
-                "The data you’re trying to add already exists in the database.\n\n"
-                "Please check:\n"
-                "- **Instrument ID**\n"
-                "- **Sample Name**\n"
-                "- **Internal Sample Code**\n\n"
-                "Ensure these fields are unique and try again. Thank you!"
+                "\033[91m"  # Red color start
+                "┌───────────────────────────────────────────────┐\n"
+                "│      ❗**Duplicate Entry Detected**❗        │\n"
+                "│                                               │\n"
+                "│ The data you're trying to add already exists. │\n"
+                "│ Check the following for uniqueness:           │\n"
+                "│ • Instrument ID                               │\n"
+                "│ • Sample Name                                 │\n"
+                "│ • Internal Sample Code                        │\n"
+                "│                                               │\n"
+                "│ Please update the information and try again.  │\n"
+                "└───────────────────────────────────────────────┘\n"
+                "\033[0m"  # Reset color
             )
 
             self._connection.rollback()
@@ -101,6 +108,7 @@ class Database:
         with self._get_cursor() as cursor:
             cursor.execute(query)
 
+
     def add_sample(
             self, 
             obj: Union[DataLoaderType, DataLoaderIterable], 
@@ -117,6 +125,18 @@ class Database:
         if isinstance(obj, (FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader)):
             obj = [obj]
 
+        for idx_obj, instance in enumerate(obj): 
+            if isinstance(instance, FluorescenceDataLoader): 
+                obj.pop(idx_obj)
+                for idx_sample, sample_id in enumerate(instance._sample_id_map): 
+                    dummy = DummyClass(
+                        data = instance.data[sample_id], 
+                        metadata = instance.metadata[sample_id], 
+                        instrument_id = instance.instrument_id, 
+                        filepath = instance.filepath
+                    )
+                    obj.insert(idx_obj+idx_sample, dummy)
+                    
         entries = map(create_entries, obj)
 
         query = f"""
@@ -143,8 +163,24 @@ class Database:
         self._connection = sqlite3.connect(self.database)
         self.__create_table()
 
+
     def close_connection(self) -> None:
         """Close the database connection."""
         if self._connection:
             self._connection.close()
             self._connection = None
+
+
+
+
+@dataclass(slots=True)
+class DummyClass:
+    """
+    A dummy class to handle fluorescence data. 
+    Since fluorescence data comes with multiple rows, ensuring that they are handled properly.
+    One class per row.
+    """
+    data: List
+    metadata: dict
+    instrument_id: str
+    filepath: str

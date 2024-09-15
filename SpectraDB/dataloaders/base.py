@@ -69,7 +69,11 @@ class BaseDataLoader(ABC):
         pass 
 
     @abstractmethod
-    def add_metadata(self):
+    def add_metadata(self,  
+                     sample_name: Optional[str] = None, 
+                     internal_code: Optional[str] = None, 
+                     collected_by: Optional[str] = None, 
+                     comments: Optional[str] = None):
         """
         Add or update metadata for the loaded data.
 
