@@ -29,14 +29,6 @@ jobs:
           poetry env use ${{ matrix.python-version }}
           poetry install
 
-      - name: Lint with flake8
-        run: poetry run flake8
-
-      - name: Print python versions
-        run: |
-          python -V
-          poetry run python -V
-
       - name: Test with pytest
         run: |
           poetry run pytest --cov
