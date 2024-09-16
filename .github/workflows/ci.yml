@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -19,17 +19,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11.1'
+          python-version: '3.11'
 
       - name: Install Poetry
         uses: python-poetry/actions/setup@v2
         with:
-          poetry-version: '1.8.3'
+          poetry-version: '1.9.0'
 
       - name: Install dependencies
         run: |
           poetry install
 
-      - name: Run tests
+      - name: Run tests and generate coverage report
         run: |
-          poetry run pytest
+          poetry run pytest --cov=spectradb --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
