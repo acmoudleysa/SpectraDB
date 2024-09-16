@@ -1,42 +1,51 @@
-name: CI
+name: Python CI
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+
+env:
+  DRY_RUN: false
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-windows:
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v3
         with:
-          python-version: '3.11'
+          python-version: 3.9
 
       - name: Install Poetry
-        uses: python-poetry/actions/setup@v2
-        with:
-          poetry-version: '1.9.0'
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
 
-      - name: Install dependencies
+      - name: Add Poetry to PATH
+        run: |
+          echo "Adding Poetry to PATH"
+          echo "##vso[task.setvariable variable=PATH]${{ env.PATH }};C:\Users\runneradmin\AppData\Roaming\Python\Python39\Scripts"
+
+      - name: Install dependencies with Poetry
         run: |
           poetry install
+          poetry add pytest-cov
 
-      - name: Run tests and generate coverage report
+      - name: Lint with flake8
         run: |
-          poetry run pytest --cov=spectradb --cov-report=xml
+          poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Upload coverage to Codecov
+      - name: Test with pytest
+        run: |
+          poetry run pytest --cov
+
+      - name: Build package with Poetry
+        run: |
+          poetry build
+
+      - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
-        with:
-          file: coverage.xml
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
