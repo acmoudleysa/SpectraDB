@@ -13,14 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
+      matrix:
+        python-version: [ '3.11.1' ]
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python 3.9
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
-          python-version: 3.9
+          python-version: ${{ matrix.python-version }}
 
       - name: Install Poetry
         run: echo "${HOME}/.poetry/bin" >> $GITHUB_PATH
@@ -28,6 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          poetry env use ${{ matrix.python-version }}
           poetry install
 
       - name: Lint with flake8
@@ -39,9 +42,9 @@ jobs:
         run: |
           poetry run pytest --cov
 
-      - name: Build package
-        run: |
-          poetry build
+      # - name: Build package
+      #   run: |
+      #     poetry build
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
