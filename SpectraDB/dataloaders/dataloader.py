@@ -163,7 +163,24 @@ class FluorescenceDataLoader(BaseDataLoader):
 
 
 @dataclass(slots=True)
-class FTIRDataLoader(BaseDataLoader): 
+class FTIRDataLoader(BaseDataLoader):
+    """
+    Data loader for FTIR data files.
+s
+    Attributes:
+        filepath (Path): Path to the data file.
+        data (Dict): Dictionary to store loaded data.
+        df (pd.DataFrame): DataFrame for structured data representation.
+        metadata (Dict): Dictionary to store metadata information.
+        instrument_id (ClassVar[InstrumentID]): Identifier for the FTIR instrument.
+
+    Methods:
+        load_data(): Loads and processes FTIR data from a file.
+        _create_dataframe(): Creates a DataFrame from the loaded data.
+        add_metadata(sample_name=None, internal_code=None, collected_by=None, comments=None): Updates metadata.
+        validate_data(): Validates the file extension.
+    """
+
     instrument_id: ClassVar[InstrumentID] = InstrumentID.FTIR.value
 
     def __post_init__(self): 
@@ -252,6 +269,94 @@ class FTIRDataLoader(BaseDataLoader):
         return self._create_dataframe()
 
     
-@dataclass
-class NMRDataLoader(BaseDataLoader): 
-    pass
+@dataclass(slots=True)
+class NMRDataLoader(BaseDataLoader):
+    """
+    Data loader for NMR data files in .txt format.
+
+    Inherits from BaseDataLoader and specializes in handling NMR data.
+
+    Attributes:
+        filepath (Path): Path to the data file.
+        data (Dict): Dictionary to store loaded data.
+        df (pd.DataFrame): DataFrame for structured data representation.
+        metadata (Dict): Dictionary to store metadata information.
+        instrument_id (ClassVar[InstrumentID]): Identifier for the NMR instrument.
+
+    Methods:
+        load_data(): Loads and processes NMR data from a file.
+        _create_dataframe(): Creates a DataFrame from the loaded data.
+        add_metadata(sample_name=None, internal_code=None, collected_by=None, comments=None): Updates metadata.
+        validate_data(): Validates the file extension.
+    """
+
+    instrument_id: ClassVar[InstrumentID] = InstrumentID.NMR.value
+
+    def __post_init__(self): 
+        super(NMRDataLoader, self).__post_init__()
+
+
+    def load_data(self) -> Dict:
+        data = np.loadtxt(self.filepath, skiprows=1, delimiter=",") 
+        
+        self.data = data[:, 1].tolist()
+
+        self.metadata = metadata_template(
+                filepath=self.filepath,
+                signal_metadata={
+                    "ppm": data[:, -1]
+                }
+            )
+        print(self)
+
+    def _create_dataframe(self) -> pd.DataFrame:
+        """
+        Create a pandas DataFrame from the loaded fluorescence data.
+        """
+        data = list() 
+        data.append(self.metadata | {"Data": self.data})
+        self._df = pd.DataFrame(data, 
+                            columns=["Filename", 
+                                     "Measurement Date", 
+                                     "Sample name", 
+                                     "Internal sample code", 
+                                     "Collected by", 
+                                     "Comments", 
+                                     "Data", 
+                                     "Signal Metadata"], 
+                            index=pd.Index(["S1"]))
+        return self._df
+
+    def add_metadata(self,  
+                     sample_name: Optional[str] = None, 
+                     internal_code: Optional[str] = None, 
+                     collected_by: Optional[str] = None, 
+                     comments: Optional[str] = None):
+        """
+        Add or update metadata for a given sample identifier.
+        """
+        if sample_name is not None:
+            self.metadata['Sample name'] = sample_name
+        if internal_code is not None:
+            self.metadata['Internal sample code'] = internal_code
+        if collected_by is not None:
+            self.metadata['Collected by'] = collected_by
+        if comments is not None:
+            self.metadata['Comments'] = comments
+
+
+    def validate_data(self):
+        if self.filepath.suffix.lower() != ".txt": 
+            raise ValueError("Invalid file extension! Make sure the data being fed has extension .txt")
+
+    def __str__(self):
+        """
+        String representation of the object
+        """
+        return f"Data generated from Bruker NMR (in .txt format) \nFile: {self.filepath.stem}"
+
+    @property
+    def df(self): 
+        return self._create_dataframe()
+    
+

@@ -186,6 +186,29 @@ class Database:
             if commit:
                 self._connection.commit()
 
+    def remove_sample(
+            self, 
+            sample_id: Union[str, List[str]], 
+            *, 
+            commit: bool=True
+    ) -> None: 
+        
+        if isinstance(sample_id, str):
+            sample_id = [sample_id]
+        
+        query = f"""
+            DELETE FROM {self.table_name}
+            WHERE sample_id=?
+            """
+
+        with self._get_cursor() as cursor: 
+            cursor.executemany(
+                query, 
+                ((id, ) for id in sample_id)
+            )
+            if commit:
+                self._connection.commit()
+
 
     def open_connection(self) -> None:
         """Open a connection to the database."""
