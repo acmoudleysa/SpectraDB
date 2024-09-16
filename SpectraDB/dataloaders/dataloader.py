@@ -305,7 +305,7 @@ class NMRDataLoader(BaseDataLoader):
         self.metadata = metadata_template(
                 filepath=self.filepath,
                 signal_metadata={
-                    "ppm": data[:, -1]
+                    "ppm": data[:, -1].astype(np.float32).tolist()
                 }
             )
         print(self)

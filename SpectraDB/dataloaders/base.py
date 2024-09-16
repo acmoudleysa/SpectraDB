@@ -110,10 +110,10 @@ class BaseDataLoader(ABC):
 
 
 def metadata_template(filepath: str, 
-                      sample_name: Optional[str] = "NA",
-                      internal_code: Optional[str] = "NA", 
-                      collected_by: Optional[str] = "NA", 
-                      comments: Optional[str] = "NA",
+                      sample_name: Optional[str] = None,
+                      internal_code: Optional[str] = None, 
+                      collected_by: Optional[str] = None, 
+                      comments: Optional[str] = None,
                       signal_metadata: Optional[Dict] = None) -> dict:
     """
     Generate a metadata template for a given sample.
@@ -136,8 +136,5 @@ def metadata_template(filepath: str,
         "Internal sample code": internal_code,
         "Collected by": collected_by,
         "Comments": comments,
-        "Signal Metadata": signal_metadata or {
-            "Excitation": [],
-            "Emission": []
-        }
+        "Signal Metadata": signal_metadata
     }
