@@ -7,43 +7,38 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '3.11.1' ]
+        python-version: ['3.11.1']
+        
     steps:
       - uses: actions/checkout@v3
+
       - name: Install poetry
         run: |
-          curl -O -sSL https://install.python-poetry.org/install-poetry.py
-          python install-poetry.py -y --version 1.8.3
-          echo "PATH=${HOME}/.poetry/bin:${PATH}" >> $GITHUB_ENV
-          rm install-poetry.py
+          curl -sSL https://install.python-poetry.org | python3 - --version 1.8.3
+          echo "PATH=$HOME/.poetry/bin:$PATH" >> $GITHUB_ENV
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'poetry'
+
+      - name: Cache Poetry Virtualenv
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-${{ matrix.python-version }}-
 
       - name: Install dependencies
         run: |
-          # This is required to do as of @actions/checkout@v3 to prevent default action python (3.8) from being used
           poetry env use ${{ matrix.python-version }}
           poetry install
 
-      - name: Lint with flake8
-        run: poetry run flake8
-
-      - name: Print python versions
-        run: |
-          python -V
-          poetry run python -V
-
       - name: Test with pytest
         run: |
-          poetry run pytest --cov
-
-      # - name: Build package
-      #   run: |
-      #     poetry build
+          poetry run pytest --cov=spectradb --cov-report=xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
