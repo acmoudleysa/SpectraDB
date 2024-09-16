@@ -28,6 +28,7 @@ class FluorescenceDataLoader(BaseDataLoader):
 
     instrument_id: ClassVar[InstrumentID] = InstrumentID.Fluorescence.value
     _sample_id_map: dict = field(init=False, default_factory=dict)
+
     def __post_init__(self):
         """
         Called automatically after the class is initialized.
@@ -299,7 +300,7 @@ class NMRDataLoader(BaseDataLoader):
     def load_data(self) -> Dict:
         data = np.loadtxt(self.filepath, skiprows=1, delimiter=",") 
         
-        self.data = data[:, 1].tolist()
+        self.data = data[:, 1].astype(np.float32).tolist()
 
         self.metadata = metadata_template(
                 filepath=self.filepath,
@@ -308,6 +309,7 @@ class NMRDataLoader(BaseDataLoader):
                 }
             )
         print(self)
+
 
     def _create_dataframe(self) -> pd.DataFrame:
         """
@@ -326,6 +328,7 @@ class NMRDataLoader(BaseDataLoader):
                                      "Signal Metadata"], 
                             index=pd.Index(["S1"]))
         return self._df
+
 
     def add_metadata(self,  
                      sample_name: Optional[str] = None, 
@@ -349,11 +352,13 @@ class NMRDataLoader(BaseDataLoader):
         if self.filepath.suffix.lower() != ".txt": 
             raise ValueError("Invalid file extension! Make sure the data being fed has extension .txt")
 
+
     def __str__(self):
         """
         String representation of the object
         """
         return f"Data generated from Bruker NMR (in .txt format) \nFile: {self.filepath.stem}"
+
 
     @property
     def df(self): 
