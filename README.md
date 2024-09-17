@@ -3,6 +3,8 @@
   <img src="assets/images/logo.png" width="300" height="130">
 </p>
 
+[![codecov](https://codecov.io/gh/acmoudleysa/SpectraDB/graph/badge.svg?token=AQWFO4NG6Q)](https://codecov.io/gh/acmoudleysa/SpectraDB)
+
 # **SpectraDB: A Lightweight Spectroscopic Data Manager**
 
 ## Introduction
