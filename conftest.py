@@ -8,3 +8,7 @@ def txt_file(tmp_path_factory):
     return file 
 
 
+@pytest.fixture(scope="session")
+def wrong_format(tmp_path_factory): 
+    file = tmp_path_factory.mktemp("data")/"example.wtf"
+    return file

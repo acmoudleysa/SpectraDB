@@ -16,10 +16,10 @@ def create_entries(obj):
     return {
         "instrument_id": obj.instrument_id,
         "measurement_date": obj.metadata['Measurement Date'], 
-        "sample_name": obj.metadata["Sample name"], 
-        "internal_code": obj.metadata["Internal sample code"], 
-        "collected_by": obj.metadata["Collected by"], 
-        "comments": obj.metadata["Comments"], 
+        "sample_name": obj.metadata["Sample name"] if obj.metadata['Sample name'] is not None else "", 
+        "internal_code": obj.metadata["Internal sample code"] if obj.metadata['Internal sample code'] is not None else "", 
+        "collected_by": obj.metadata["Collected by"] if obj.metadata['Collected by'] is not None else "", 
+        "comments": obj.metadata["Comments"] if obj.metadata['Comments'] is not None else "", 
         "data": json.dumps(obj.data), 
         "signal_metadata": json.dumps(obj.metadata["Signal Metadata"]), 
         "date_added": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -60,7 +60,8 @@ class Database:
         try:
             yield cursor
 
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as e:
+            print(e)
             print(
                 "\033[91m"  # Red color start
                 "┌───────────────────────────────────────────────┐\n"
@@ -101,16 +102,16 @@ class Database:
         CREATE TABLE IF NOT EXISTS {self.table_name} (
             measurement_id INTEGER PRIMARY KEY AUTOINCREMENT,
             sample_id TEXT, 
-            instrument_id TEXT,
+            instrument_id TEXT ,
             measurement_date TEXT,
-            sample_name TEXT,
+            sample_name TEXT, 
             internal_code TEXT,
             collected_by TEXT,
-            comments TEXT,
+            comments TEXT, 
             data TEXT,
             signal_metadata TEXT, 
             date_added TEXT, 
-            UNIQUE(instrument_id, sample_name, comments)
+            UNIQUE(instrument_id, sample_name, internal_code, comments)
         );
 
         CREATE TRIGGER IF NOT EXISTS generate_sample_id
@@ -157,9 +158,8 @@ class Database:
                         filepath = instance.filepath
                     )
                     obj.insert(idx_obj+idx_sample, dummy)
-                    
-        entries = map(create_entries, obj)
 
+        entries = map(create_entries, obj)
         query1 = """
 
         INSERT OR IGNORE INTO instrument_sample_count (instrument_type, counter

@@ -2,6 +2,7 @@ from spectradb.dataloaders import FluorescenceDataLoader, NMRDataLoader, FTIRDat
 from datetime import datetime
 import os 
 from numpy.testing import assert_array_almost_equal
+import pytest
 
 
 def test_NMR_valid_file_format(txt_file):
@@ -27,3 +28,7 @@ def test_NMR_metadata(txt_file):
         "Internal sample code": None, 
         "Collected by": None, 
         "Comments": None}
+
+def test_NMR_invalid_file_format(wrong_format): 
+    with pytest.raises(ValueError, match="Invalid file extension! Make sure the data being fed has extension .txt"): 
+        NMRDataLoader(filepath=wrong_format)

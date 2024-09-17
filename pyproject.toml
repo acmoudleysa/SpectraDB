@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Amulya Baniya"]
 readme = "README.md"
+packages = [{ include = "spectradb" }]
 
 
 [tool.poetry.dependencies]
@@ -12,12 +13,10 @@ pandas = "^2.2.2"
 numpy = "^2.1.1"
 plotly = "^5.24.1"
 nbformat = "^5.10.4"
-matplotlib = "^3.9.2"
 db-sqlite3 = "^0.0.1"
 pytest = "^8.3.3"
 ipykernel = "^6.29.5"
 pytest-cov = "^5.0.0"
-
 
 [build-system]
 requires = ["poetry-core"]
