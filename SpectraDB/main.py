@@ -61,7 +61,6 @@ class Database:
             yield cursor
 
         except sqlite3.IntegrityError as e:
-            print(e)
             print(
                 "\033[91m"  # Red color start
                 "┌───────────────────────────────────────────────┐\n"

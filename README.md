@@ -1,3 +1,8 @@
+
+<p align="center">
+  <img src="assets/images/logo.png" width="300" height="130">
+</p>
+
 # **SpectraDB: A Lightweight Spectroscopic Data Manager**
 
 ## Introduction
