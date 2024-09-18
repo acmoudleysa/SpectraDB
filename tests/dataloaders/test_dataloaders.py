@@ -1,8 +1,9 @@
 from spectradb.dataloaders import FluorescenceDataLoader, NMRDataLoader, FTIRDataLoader
 from datetime import datetime
 import os 
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_equal
 import pytest
+import numpy as np 
 
 
 class TestNMRDataLoader: 
@@ -41,9 +42,10 @@ class TestNMRDataLoader:
 
 class TestFluorescenceDataLoader(): 
     @pytest.fixture(autouse=True)
-    def setup(self, csv_file): 
+    def setup(self, csv_file, wrong_format): 
         self.dataloader = FluorescenceDataLoader(csv_file)
         self.csv_file = csv_file
+        self.wrong_format = wrong_format
 
     def test_FL_valid_file_format(self):
         assert self.dataloader.filepath == self.csv_file
@@ -61,5 +63,96 @@ class TestFluorescenceDataLoader():
         assert_array_almost_equal(self.dataloader.data['S4'], [[18.34862328, 0, 0], 
                         [4.796163082, 4.878048897, 0]])
 
-    
+    def test_FL_invalid_file_format(self):
+        with pytest.raises(ValueError, match="Invalid file extension! Make sure the data being fed is a CSV"): 
+            FluorescenceDataLoader(filepath=self.wrong_format)
 
+    def test_FL_metadata(self): 
+        assert self.dataloader.metadata["S1"] == {
+            "Measurement Date" : datetime.fromtimestamp(os.path.getmtime(self.csv_file)).strftime("%Y-%m-%d"), 
+            "Filename": "Test.csv", 
+            "Sample name": "Sample1", 
+            "Internal sample code": None, 
+            "Collected by": None, 
+            "Signal Metadata": {
+                "Excitation": [200, 205], 
+                "Emission": [210, 215, 220]
+            }, 
+            "Comments": None}
+        
+        assert self.dataloader.metadata["S2"] == {
+            "Measurement Date" : datetime.fromtimestamp(os.path.getmtime(self.csv_file)).strftime("%Y-%m-%d"), 
+            "Filename": "Test.csv", 
+            "Sample name": "Sample2", 
+            "Internal sample code": None, 
+            "Collected by": None, 
+            "Signal Metadata": {
+                "Excitation": [200, 205], 
+                "Emission": [210, 215, 220]
+            }, 
+            "Comments": None}
+        
+        assert self.dataloader.metadata["S3"] == {
+            "Measurement Date" : datetime.fromtimestamp(os.path.getmtime(self.csv_file)).strftime("%Y-%m-%d"), 
+            "Filename": "Test.csv", 
+            "Sample name": "Sample3", 
+            "Internal sample code": None, 
+            "Collected by": None, 
+            "Signal Metadata": {
+                "Excitation": [200, 205], 
+                "Emission": [210, 215, 220]
+            }, 
+            "Comments": None}
+        
+        assert self.dataloader.metadata["S4"] == {
+            "Measurement Date" : datetime.fromtimestamp(os.path.getmtime(self.csv_file)).strftime("%Y-%m-%d"), 
+            "Filename": "Test.csv", 
+            "Sample name": "Sample4", 
+            "Internal sample code": None, 
+            "Collected by": None, 
+            "Signal Metadata": {
+                "Excitation": [200, 205], 
+                "Emission": [210, 215, 220]
+            }, 
+            "Comments": None}
+        
+    def test_delete_measurements(self): 
+        self.dataloader.delete_measurement("S2")
+        assert all("S2" not in d for d in [self.dataloader.data, self.dataloader.metadata, self.dataloader._sample_id_map])
+
+
+    def test_add_metadata(self): 
+        self.dataloader._create_dataframe()
+
+        self.dataloader.add_metadata(
+            identifier="S2", 
+            sample_name="Check_sample", 
+            internal_code="C1", 
+            collected_by="XYZ", 
+            comments="Just a test"
+        )
+
+        assert self.dataloader.metadata['S2']['Sample name'] == "Check_sample"
+        assert self.dataloader.metadata['S2']['Internal sample code'] == "C1"
+        assert self.dataloader.metadata['S2']['Collected by'] == "XYZ"
+        assert self.dataloader.metadata['S2']['Comments'] == "Just a test"
+
+        # This is important because the df won't be changed until the user calls the property `df`. 
+        assert_equal(
+            self.dataloader._df['Sample name'].to_numpy(), 
+            np.array(["Sample1",
+                    "Sample2", 
+                    "Sample3", 
+                    "Sample4"])
+        )
+
+        # since we are using df now, the property calls the internal _create dataframe and updates the dataframe. 
+        # This is an intended behavior because spectradb uses dict and only creates dataframe when users asks for it. 
+
+        assert_equal(
+            self.dataloader.df['Sample name'].to_numpy(), 
+            np.array(["Sample1",
+                    "Check_sample", 
+                    "Sample3", 
+                    "Sample4"])
+        )
