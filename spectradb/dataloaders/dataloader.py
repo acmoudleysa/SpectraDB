@@ -46,7 +46,7 @@ class FluorescenceDataLoader(BaseDataLoader):
               .dropna(how="all", axis=1)
               .dropna(how="all", axis=0))
 
-        unique_samples = set([col.split("_EX_")[0] for col in df.columns if "_EX_" in col])
+        unique_samples = list(dict.fromkeys([col.split("_EX_")[0] for col in df.columns if "_EX_" in col])) # This keeps the order unlike using set
         
         for sample_number, sample in enumerate(unique_samples, start=1):
             sample_id = f"S{sample_number}"
