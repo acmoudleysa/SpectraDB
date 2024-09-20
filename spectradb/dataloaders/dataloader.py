@@ -4,6 +4,8 @@ from spectradb.dataloaders.base import BaseDataLoader, InstrumentID, metadata_te
 from dataclasses import dataclass, field
 from typing import ClassVar, Optional
 import numpy as np 
+from io import StringIO
+import csv
 
 
 
@@ -42,11 +44,37 @@ class FluorescenceDataLoader(BaseDataLoader):
         """
         Load fluorescence data from the CSV file and extract sample-specific metadata.
         """
-        df = (pd.read_csv(self.filepath)
+        with open(self.filepath, "r") as rawfile: 
+            reader = csv.reader(rawfile)
+            # Reading the header of the csv
+            header = next(reader)
+            # This part of the code is written to catch an edge case where the user inputs a name that contains comma, causing the read_csv to fail
+            correct_header = []
+            current_data = []
+            for data in header:
+                if data == "": 
+                    if current_data: 
+                        correct_header.append(",".join(current_data))
+                        current_data = []
+                    correct_header.append(data)
+                else: 
+                    current_data.append(data)
+            # creating a stream because we don't wanna save the file in memoery 
+            output = StringIO()
+            writer = csv.writer(output)
+            # writing the first row
+            writer.writerow(correct_header)
+            # The reader is at the first row of data (after the header), so we can write the remaining rows directly.
+            writer.writerows(reader)
+            # Reset the stream so that read_csv can read from the beginning
+            output.seek(0)
+
+        df = (pd.read_csv(output)
               .dropna(how="all", axis=1)
               .dropna(how="all", axis=0))
-
-        unique_samples = list(dict.fromkeys([col.split("_EX_")[0] for col in df.columns if "_EX_" in col])) # This keeps the order unlike using set
+        
+        # Getting the names of the samples that were analyzed. Preferred over `set` as it preserves order.
+        unique_samples = list(dict.fromkeys([col.split("_EX_")[0].strip() for col in df.columns if "_EX_" in col])) 
         
         for sample_number, sample in enumerate(unique_samples, start=1):
             sample_id = f"S{sample_number}"
@@ -69,7 +97,6 @@ class FluorescenceDataLoader(BaseDataLoader):
                     "Emission": em_wl
                 }
             )
-
             # Storing actual fluorescence data for each sample
             self.data[sample_id] = df.iloc[1:, list(idx)].to_numpy(dtype=np.float32).T.tolist()
 
@@ -214,7 +241,6 @@ s
                     "Wavenumbers": np.linspace(wavenumbers_min, wavenumbers_max, num_wn_points)[::-1].astype(int).tolist()
                 }
             )
-
         print(self)
 
 

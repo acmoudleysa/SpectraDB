@@ -1,6 +1,7 @@
 from spectradb.dataloaders import FluorescenceDataLoader, NMRDataLoader, FTIRDataLoader
 import pytest
 from pathlib import Path
+from io import StringIO
 
 path = Path(__file__).parent
 
@@ -19,3 +20,17 @@ def wrong_format(tmp_path_factory):
 @pytest.fixture
 def csv_file(): 
     return path/"Test.csv"
+
+@pytest.fixture(scope="session")
+def edge_case_csv_file(tmp_path_factory): 
+    with open(path/"Test.csv", "r") as readfile: 
+        contents = readfile.read() 
+        contents = contents.replace("Sample1", "1,5,7 ABC")
+    file = tmp_path_factory.mktemp("data")/"edgecase_FL.csv"
+    file.write_text(contents)
+    print(contents)
+    return file
+
+@pytest.fixture(scope="session")
+def spa_file(tmp_path_factory): 
+    pass 
