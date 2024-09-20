@@ -24,15 +24,14 @@ class BaseDataLoader(ABC):
     """
     Abstract base class for data loaders.
 
-    Defines the essential methods and attributes for concrete data loader implementations.
-    
+    Defines the essential methods and attributes for concrete data loader implementations.  # noqa: E501
+
     Attributes:
         filepath (Path): Path to the data file.
         data (Dict): Dictionary to store loaded data.
         df (pd.DataFrame): DataFrame for structured data representation.
         metadata (Dict): Dictionary to store metadata information.
     """
-    
     filepath: Path
     data: Dict = field(init=False, default_factory=dict)
     _df: pd.DataFrame = field(init=False, default=None)
@@ -44,7 +43,8 @@ class BaseDataLoader(ABC):
         Ensures filepath is a string or Path object.
         """
         if not isinstance(self.filepath, (str, Path)):
-            raise TypeError(f"Expected filepath to be of type str or Path, got {type(self.filepath).__name__}")
+            raise TypeError(f"Expected filepath to be of type str or Path,\
+                            got {type(self.filepath).__name__}")
         self.filepath = Path(self.filepath)
         self.validate_data()
         self.load_data()
@@ -57,7 +57,7 @@ class BaseDataLoader(ABC):
         Returns:
             Dict: A dictionary containing the loaded data.
         """
-        pass 
+        pass
 
     @abstractmethod
     def _create_dataframe(self) -> pd.DataFrame:
@@ -67,20 +67,20 @@ class BaseDataLoader(ABC):
         Returns:
             pd.DataFrame: A DataFrame representation of the data.
         """
-        pass 
+        pass
 
     @abstractmethod
-    def add_metadata(self,  
-                     sample_name: Optional[str] = None, 
-                     internal_code: Optional[str] = None, 
-                     collected_by: Optional[str] = None, 
+    def add_metadata(self,
+                     sample_name: Optional[str] = None,
+                     internal_code: Optional[str] = None,
+                     collected_by: Optional[str] = None,
                      comments: Optional[str] = None):
         """
         Add or update metadata for the loaded data.
 
-        This method should be implemented to handle metadata changes or additions.
+        Method should be implemented to handle metadata changes or additions.
         """
-        pass 
+        pass
 
     @abstractmethod
     def validate_data(self):
@@ -96,7 +96,7 @@ class BaseDataLoader(ABC):
     @abstractmethod
     def df(self) -> pd.DataFrame:
         """
-        Property to access the DataFrame. Creates or updates it if it doesn't exist.
+        Property to access the df. Creates or updates if it doesn't exist.
 
         Returns:
             pd.DataFrame: The DataFrame representation of the data.
@@ -104,15 +104,15 @@ class BaseDataLoader(ABC):
         pass
 
     def to_csv(self,
-               path: Union[str, Path] = None) -> None: 
-        path = path or self.filepath
+               path: Union[str, Path] = None) -> None:
+        path = path or Path("processed_" + self.filepath.stem + ".csv")
         self._df.to_csv(path)
 
 
-def metadata_template(filepath: str, 
+def metadata_template(filepath: str,
                       sample_name: Optional[str] = None,
-                      internal_code: Optional[str] = None, 
-                      collected_by: Optional[str] = None, 
+                      internal_code: Optional[str] = None,
+                      collected_by: Optional[str] = None,
                       comments: Optional[str] = None,
                       signal_metadata: Optional[Dict] = None) -> dict:
     """
@@ -124,13 +124,14 @@ def metadata_template(filepath: str,
         internal_code (str, optional): Internal sample code. Defaults to "NA".
         collected_by (str, optional): Name of the person who collected the data. Defaults to "NA".
         comments (str, optional): Additional comments about the sample. Defaults to "NA".
-        signal_metadata (dict, optional): Signal metadata including excitation and emission wavelengths.
+        signal_metadata (dict, optional): Signal metadata including excitation and emission wavelengths.  # noqa: E501
 
     Returns:
         dict: A dictionary containing the metadata template.
     """
     return {
-        "Measurement Date": datetime.fromtimestamp(os.path.getmtime(filepath)).strftime("%Y-%m-%d"),
+        "Measurement Date": datetime.fromtimestamp(os.path.getmtime(filepath))
+        .strftime("%Y-%m-%d"),
         "Filename": os.path.basename(filepath),
         "Sample name": sample_name,
         "Internal sample code": internal_code,

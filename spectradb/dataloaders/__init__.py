@@ -1,10 +1,10 @@
 from .dataloader import (
-    FluorescenceDataLoader, 
+    FluorescenceDataLoader,
     NMRDataLoader, FTIRDataLoader
 )
 
 __all__ = [
-    "FluorescenceDataLoader", 
-    "NMRDataLoader", 
+    "FluorescenceDataLoader",
+    "NMRDataLoader",
     "FTIRDataLoader"
 ]

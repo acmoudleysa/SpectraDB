@@ -1,5 +1,7 @@
 from typing import Union, Iterable
-from spectradb.dataloaders import FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader
+from spectradb.dataloaders import (FluorescenceDataLoader,
+                                   FTIRDataLoader,
+                                   NMRDataLoader)
 
 FluorescenceIterable = Iterable[FluorescenceDataLoader]
 FTIRIterable = Iterable[FTIRDataLoader]
