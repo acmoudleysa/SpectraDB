@@ -180,8 +180,8 @@ class FluorescenceDataLoader(BaseDataLoader):
             ValueError: If the input file is not a CSV.
         """
         if self.filepath.suffix.lower() != ".csv":
-            raise ValueError("Invalid file extension! \
-                             Make sure the data being fed is a CSV.")
+            raise ValueError("Invalid file extension! "
+                             "Make sure the data being fed is a CSV.")
 
     def __str__(self):
         """
@@ -300,8 +300,8 @@ s
 
     def validate_data(self):
         if self.filepath.suffix.lower() != ".spa":
-            raise ValueError("Invalid file extension!\
-                              Make sure the data being fed has extension .spa")
+            raise ValueError("Invalid file extension! "
+                             "Make sure the data being fed has extension .spa")
 
     def __str__(self):
         """
@@ -391,8 +391,8 @@ class NMRDataLoader(BaseDataLoader):
 
     def validate_data(self):
         if self.filepath.suffix.lower() != ".txt":
-            raise ValueError("Invalid file extension! \
-                             Make sure the data being fed has extension .txt")
+            raise ValueError("Invalid file extension! "
+                             "Make sure the data being fed has extension .txt")
 
     def __str__(self):
         """

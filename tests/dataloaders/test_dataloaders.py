@@ -36,8 +36,8 @@ class TestNMRDataLoader:
             "Comments": None}
 
     def test_NMR_invalid_file_format(self):
-        with pytest.raises(ValueError, match="Invalid file extension!\
-                            Make sure the data being fed has extension .txt"):
+        with pytest.raises(ValueError, match="Invalid file extension! "
+                           "Make sure the data being fed has extension .txt"):
             NMRDataLoader(filepath=self.wrong_format)
 
 
@@ -71,8 +71,8 @@ class TestFTIRDataLoader:
             "Comments": None}
 
     def test_NMR_invalid_file_format(self):
-        with pytest.raises(ValueError, match="Invalid file extension! \
-                           Make sure the data being fed has extension .txt"):
+        with pytest.raises(ValueError, match="Invalid file extension! "
+                           "Make sure the data being fed has extension .txt"):
             NMRDataLoader(filepath=self.wrong_format)
 
 
@@ -108,8 +108,8 @@ class TestFluorescenceDataLoader():
                                        [4.796163082, 4.878048897, 0]])
 
     def test_FL_invalid_file_format(self):
-        with pytest.raises(ValueError, match="Invalid file extension! \
-                           Make sure the data being fed is a CSV"):
+        with pytest.raises(ValueError, match="Invalid file extension! "
+                           "Make sure the data being fed is a CSV"):
             FluorescenceDataLoader(filepath=self.wrong_format)
 
     def test_FL_metadata(self):
