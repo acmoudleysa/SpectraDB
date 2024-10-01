@@ -183,7 +183,7 @@ class FluorescenceDataLoader(BaseDataLoader):
             raise ValueError("Invalid file extension! "
                              "Make sure the data being fed is a CSV.")
 
-    def __str__(self) -> None:
+    def __str__(self) -> str:
         """
         String representation of the object, showing sample IDs and their
         corresponding names in a table format with borders.

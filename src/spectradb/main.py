@@ -4,7 +4,7 @@ from spectradb.dataloaders import (FTIRDataLoader, FluorescenceDataLoader,
                                    NMRDataLoader)
 from typing import Union, List
 from pathlib import Path
-from spectradb.types import DataLoaderType, DataLoaderIterable
+from spectradb.types import DataLoaderType
 from contextlib import contextmanager
 from datetime import datetime
 from dataclasses import dataclass
@@ -136,7 +136,7 @@ class Database:
 
     def add_sample(
             self,
-            obj: Union[DataLoaderType, DataLoaderIterable],
+            obj: Union[DataLoaderType, List[DataLoaderType]],
             *,
             commit: bool = True
     ) -> None:
