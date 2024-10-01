@@ -265,10 +265,7 @@ s
         """
         Create a pandas DataFrame from the loaded fluorescence data.
         """
-        data = list()
-        for sample_id, metadata in self.metadata.items():
-            data.append(metadata | {"Data": self.data[sample_id]})
-
+        data = [self.metadata | {"Data": self.data}]
         self._df = pd.DataFrame(data,
                                 columns=["Filename",
                                          "Measurement Date",
@@ -356,10 +353,7 @@ class NMRDataLoader(BaseDataLoader):
         """
         Create a pandas DataFrame from the loaded fluorescence data.
         """
-        data = list()
-        for sample_id, metadata in self.metadata.items():
-            data.append(metadata | {"Data": self.data[sample_id]})
-
+        data = [self.metadata | {"Data": self.data}]
         self._df = pd.DataFrame(data,
                                 columns=["Filename",
                                          "Measurement Date",

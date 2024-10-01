@@ -126,7 +126,9 @@ class Database:
             WHERE instrument_type = NEW.instrument_id;
 
             UPDATE {self.table_name}
-            SET sample_id = NEW.instrument_id || '_' || (SELECT counter FROM instrument_sample_count WHERE instrument_type = NEW.instrument_id)  # noqa: E501
+            SET sample_id = NEW.instrument_id || '_' ||
+            (SELECT counter FROM instrument_sample_count
+            WHERE instrument_type = NEW.instrument_id)
             WHERE rowid = NEW.rowid;
         END;
 
