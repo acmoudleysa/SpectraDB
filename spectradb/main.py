@@ -139,7 +139,7 @@ class Database:
             obj: Union[DataLoaderType, DataLoaderIterable],
             *,
             commit: bool = True
-    ):
+    ) -> None:
         """
         Adds one or more samples to the database.
 

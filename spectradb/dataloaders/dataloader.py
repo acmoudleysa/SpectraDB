@@ -63,7 +63,7 @@ class FluorescenceDataLoader(BaseDataLoader):
                     correct_header.append(data)
                 else:
                     current_data.append(data)
-            # creating a stream because we don't wanna save the file in memoery
+            # creating a stream because we wanna save the file in memoery
             output = StringIO()
             writer = csv.writer(output)
             # writing the first row
@@ -136,7 +136,7 @@ class FluorescenceDataLoader(BaseDataLoader):
         return self._df
 
     def delete_measurement(self,
-                           identifier: str):
+                           identifier: str) -> None:
         """
         Method to delete a measurement using identifier name
         """
@@ -152,7 +152,7 @@ class FluorescenceDataLoader(BaseDataLoader):
                      sample_name: Optional[str] = None,
                      internal_code: Optional[str] = None,
                      collected_by: Optional[str] = None,
-                     comments: Optional[str] = None):
+                     comments: Optional[str] = None) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
@@ -169,7 +169,7 @@ class FluorescenceDataLoader(BaseDataLoader):
         if comments is not None:
             sample_metadata['Comments'] = comments
 
-    def validate_data(self):
+    def validate_data(self) -> None:
         """
         Validate the input file type.
 
@@ -183,7 +183,7 @@ class FluorescenceDataLoader(BaseDataLoader):
             raise ValueError("Invalid file extension! "
                              "Make sure the data being fed is a CSV.")
 
-    def __str__(self):
+    def __str__(self) -> None:
         """
         String representation of the object, showing sample IDs and their
         corresponding names in a table format with borders.
@@ -202,7 +202,7 @@ class FluorescenceDataLoader(BaseDataLoader):
             spectrometer\nFile: {self.filepath.stem}\nSamples:\n{table}"
 
     @property
-    def df(self):
+    def df(self) -> pd.DataFrame:
         return self._create_dataframe()
 
 
@@ -285,7 +285,7 @@ s
                      sample_name: Optional[str] = None,
                      internal_code: Optional[str] = None,
                      collected_by: Optional[str] = None,
-                     comments: Optional[str] = None):
+                     comments: Optional[str] = None) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
@@ -298,12 +298,12 @@ s
         if comments is not None:
             self.metadata['Comments'] = comments
 
-    def validate_data(self):
+    def validate_data(self) -> None:
         if self.filepath.suffix.lower() != ".spa":
             raise ValueError("Invalid file extension! "
                              "Make sure the data being fed has extension .spa")
 
-    def __str__(self):
+    def __str__(self) -> None:
         """
         String representation of the object
         """
@@ -311,7 +311,7 @@ s
             {self.filepath.stem}"
 
     @property
-    def df(self):
+    def df(self) -> pd.DataFrame:
         return self._create_dataframe()
 
 
@@ -376,7 +376,7 @@ class NMRDataLoader(BaseDataLoader):
                      sample_name: Optional[str] = None,
                      internal_code: Optional[str] = None,
                      collected_by: Optional[str] = None,
-                     comments: Optional[str] = None):
+                     comments: Optional[str] = None) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
@@ -389,12 +389,12 @@ class NMRDataLoader(BaseDataLoader):
         if comments is not None:
             self.metadata['Comments'] = comments
 
-    def validate_data(self):
+    def validate_data(self) -> None:
         if self.filepath.suffix.lower() != ".txt":
             raise ValueError("Invalid file extension! "
                              "Make sure the data being fed has extension .txt")
 
-    def __str__(self):
+    def __str__(self) -> None:
         """
         String representation of the object
         """
@@ -402,5 +402,5 @@ class NMRDataLoader(BaseDataLoader):
               \nFile: {self.filepath.stem}"
 
     @property
-    def df(self):
+    def df(self) -> pd.DataFrame:
         return self._create_dataframe()
