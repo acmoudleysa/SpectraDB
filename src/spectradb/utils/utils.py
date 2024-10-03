@@ -98,13 +98,16 @@ def _plot_spectrum_NMR_FTIR(
         go.Scatter(
             x=np.array(x, dtype=str),  # to avoid sorting
             y=y,
-            mode="lines"
+            mode="lines",
+            name=obj.metadata['Sample name'] if obj.metadata['Sample name']
+            else obj.metadata['Filename']
         )
     )
     fig.update_layout(
                       height=500,
                       width=600,
-                      plot_bgcolor='white'
+                      plot_bgcolor='white',
+                      showlegend=True
                       )
 
     for axis in ['xaxis', 'yaxis']:
