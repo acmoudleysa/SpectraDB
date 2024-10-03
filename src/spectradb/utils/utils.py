@@ -1,55 +1,74 @@
 from spectradb.dataloaders import FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader  # noqa: E501
 import plotly.graph_objects as go
-from typing import Union
+from typing import Union, Literal, overload, Optional
 import numpy as np
+import plotly_express as px
+import pandas as pd
 
 
-def contourplot(
+def _plot_fluorescence_spectrum(
         obj: FluorescenceDataLoader,
-        identifier: str
+        identifier: str,
+        plot_type: Literal["1D", "2D"]
 ) -> go.Figure:
     """
-    Creates a contour plot of fluorescence data.
-
-    Parameters:
-    -----------
-    obj : FluorescenceDataLoader
-        Object containing fluorescence data and metadata.
-
-    identifier : str
-        Identifier for the dataset to plot.
-
+    Plot fluorescence spectrum using either 1D or 2D representation.
+    
+    Args:
+        obj (FluorescenceDataLoader): The data loader object.
+        identifier (str): The identifier for the specific sample.
+        plot_type (Literal["1D", "2D"]): The type of plot to generate. Default is "1D".
+    
     Returns:
-    --------
-    go.Figure
-        Plotly contour plot showing intensity as a function of
-        excitation and emission wavelengths.
+        go.Figure: A plotly figure object.
     """
+    data = obj.data[identifier]
+    em = obj.metadata[identifier]['Signal Metadata']['Emission']
+    ex = obj.metadata[identifier]['Signal Metadata']['Excitation']
+    if plot_type == "1D":
+        df = (pd.DataFrame(data,
+                           columns=em)
+            .assign(Excitation=ex)
+            .melt(
+                id_vars=['Excitation'],
+                value_name='Intensity',
+                var_name="Emission"
+            )
+            )
+        fig = px.line(
+            df,
+            x="Emission",
+            y="Intensity",
+            line_group="Excitation"
+        )
+        fig.update_traces(
+        line=dict(width=1.2,
+                color="rgb(49,130,189)")
+        )
+        return fig
 
-    z = obj.data[identifier]
-    x = obj.metadata[identifier]['Signal Metadata']['Emission']
-    y = obj.metadata[identifier]['Signal Metadata']['Excitation']
+    elif plot_type == "2D":
+        fig = go.Figure()
+        fig.add_trace(go.Contour(
+            z=data,
+            x=em,
+            y=ex,
+            colorscale="Cividis",
+            colorbar=dict(title="Intensity")
+        ))
 
-    fig = go.Figure()
-    fig.add_trace(go.Contour(
-        z=z,
-        x=x,
-        y=y,
-        colorscale="Cividis",
-        colorbar=dict(title="Intensity")
-    ))
-
-    fig.update_xaxes(nticks=10, title_text='Emission')
-    fig.update_yaxes(nticks=10, title_text='Excitation')
-    fig.update_layout(
-        height=500,
-        width=600
-    )
-
-    return fig
+        fig.update_xaxes(nticks=10, title_text='Emission')
+        fig.update_yaxes(nticks=10, title_text='Excitation')
+        fig.update_layout(
+            height=500,
+            width=600
+        )
+        return fig
+    else:
+        raise TypeError("Type of plot can only be 1D or 2D.")
 
 
-def spectrum(
+def _plot_spectrum_NMR_FTIR(
         obj: Union[FTIRDataLoader, NMRDataLoader]
 ) -> go.Figure:
     """
@@ -86,7 +105,6 @@ def spectrum(
             mode="lines"
         )
     )
-
     fig.update_layout(
                       height=500,
                       width=600,
@@ -104,5 +122,52 @@ def spectrum(
                 showgrid=False,
                 nticks=10 if axis == 'xaxis' else 5
             )})
-
     return fig
+
+@overload
+def spectrum(
+    obj: Union[FTIRDataLoader, NMRDataLoader]
+) -> go.Figure:
+    ...
+
+@overload
+def spectrum(
+    obj: FluorescenceDataLoader,
+    identifier: str,
+    plot_type: Literal["1D", "2D"]
+) -> go.Figure:
+    ...
+
+def spectrum(
+        obj: Union[FTIRDataLoader, NMRDataLoader, FluorescenceDataLoader],
+        identifier: Optional[str] = None,
+        plot_type: Optional[str] = None
+) -> go.Figure:
+    """
+Create a spectral plot from FTIR, NMR, or Fluorescence data.
+
+Args:
+    obj: The data loader object. Can be FTIRDataLoader, NMRDataLoader, or FluorescenceDataLoader.
+    identifier (str, optional): The identifier for the sample (only required for FluorescenceDataLoader).
+    plot_type (str, optional): The type of plot to generate ("1D" or "2D", only required for FluorescenceDataLoader).
+
+Returns:
+    go.Figure: A plotly figure object.
+
+Raises:
+    TypeError: If the object type is unsupported.
+    ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
+    """
+    if isinstance(obj, (FTIRDataLoader, NMRDataLoader)):
+        return _plot_spectrum_NMR_FTIR(obj)
+    elif isinstance(obj, FluorescenceDataLoader):
+        if not identifier or not plot_type:
+            raise ValueError("Identifier or plot_type must be provided "
+                             "for FluorescenceDataLoader object.")
+        return _plot_fluorescence_spectrum(obj,
+                                           identifier,
+                                           plot_type)
+    else: 
+        raise TypeError(f"Unsupported object type: {type(obj)}")
+    
+
