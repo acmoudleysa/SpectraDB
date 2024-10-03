@@ -59,8 +59,8 @@ class Database:
     def _get_cursor(self):
         """Context manager for database transactions."""
         if not self._connection:
-            raise RuntimeError("Database connection is not \
-                               established. Use 'with' statement.")
+            raise RuntimeError(
+                "Database connection is not established. Use 'with' statement.")  # noqa E501
 
         cursor = self._connection.cursor()
         try:
@@ -97,7 +97,7 @@ class Database:
         """
         query = f"""
 
-        CREATE TABLE IF NOT EXISTS instrument_sample_count (
+        CREATE TABLE IF NOT EXISTS {self.table_name}_instrument_sample_count (
         instrument_type TEXT PRIMARY KEY,
         counter INTEGER DEFAULT 0
         );
@@ -121,13 +121,13 @@ class Database:
         CREATE TRIGGER IF NOT EXISTS generate_sample_id
         AFTER INSERT ON {self.table_name}
         BEGIN
-            UPDATE instrument_sample_count
+            UPDATE {self.table_name}_instrument_sample_count
             SET counter = counter + 1
             WHERE instrument_type = NEW.instrument_id;
 
             UPDATE {self.table_name}
             SET sample_id = NEW.instrument_id || '_' ||
-            (SELECT counter FROM instrument_sample_count
+            (SELECT counter FROM {self.table_name}_instrument_sample_count
             WHERE instrument_type = NEW.instrument_id)
             WHERE rowid = NEW.rowid;
         END;
