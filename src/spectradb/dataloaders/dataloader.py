@@ -3,7 +3,7 @@ import pandas as pd
 from spectradb.dataloaders.base import (BaseDataLoader, InstrumentID,
                                         metadata_template)
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, List
 import numpy as np
 from io import StringIO
 import csv
@@ -136,16 +136,20 @@ class FluorescenceDataLoader(BaseDataLoader):
         return self._df
 
     def delete_measurement(self,
-                           identifier: str) -> None:
+                           identifiers: str | List[str]) -> None:
         """
         Method to delete a measurement using identifier name
         """
-        if identifier not in self.metadata:
-            raise KeyError(f"Sample identifier '{identifier}' not found.")
+        if isinstance(identifiers, str):
+            identifiers = [identifiers]
+        non_existent = [id for id in identifiers if id not in self.metadata]
+        if non_existent:
+            raise KeyError(f"Sample identifier(s) not found: {', '.join(non_existent)}")  # noqa E501
 
-        del self.metadata[identifier], \
-            self.data[identifier], \
-            self._sample_id_map[identifier]
+        for identifier in identifiers:
+            del self.metadata[identifier]
+            del self.data[identifier]
+            del self._sample_id_map[identifier]
 
     def add_metadata(self,
                      identifier: str,
@@ -198,8 +202,8 @@ class FluorescenceDataLoader(BaseDataLoader):
         table = f"{separator}\n{header}\n{separator}\n" + "\n"\
             .join(sample_rows) + f"\n{separator}"
 
-        return f"Data generated from Agilent Cary Eclipse fluorescence \
-            spectrometer\nFile: {self.filepath.stem}\nSamples:\n{table}"
+        return (f"Data generated from Agilent Cary Eclipse fluorescence "
+                f"spectrometer\nFile: {self.filepath.stem}\nSamples:\n{table}")
 
     @property
     def df(self) -> pd.DataFrame:
@@ -210,20 +214,20 @@ class FluorescenceDataLoader(BaseDataLoader):
 class FTIRDataLoader(BaseDataLoader):
     """
     Data loader for FTIR data files.
-s
+
     Attributes:
         filepath (Path): Path to the data file.
         data (Dict): Dictionary to store loaded data.
         df (pd.DataFrame): DataFrame for structured data representation.
         metadata (Dict): Dictionary to store metadata information.
-        instrument_id (ClassVar[InstrumentID]): Identifier for the FTIR instrument.  # noqa: E501
+        instrument_id (ClassVar[InstrumentID]): Identifier for the FTIR instrument.
 
     Methods:
         load_data(): Loads and processes FTIR data from a file.
         _create_dataframe(): Creates a DataFrame from the loaded data.
         add_metadata(sample_name=None, internal_code=None, collected_by=None, comments=None): Updates metadata.
         validate_data(): Validates the file extension.
-    """
+    """  # noqa: E501
 
     instrument_id: ClassVar[InstrumentID] = InstrumentID.FTIR.value
 
