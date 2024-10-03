@@ -13,28 +13,25 @@ def _plot_fluorescence_spectrum(
 ) -> go.Figure:
     """
     Plot fluorescence spectrum using either 1D or 2D representation.
-    
+
     Args:
         obj (FluorescenceDataLoader): The data loader object.
         identifier (str): The identifier for the specific sample.
         plot_type (Literal["1D", "2D"]): The type of plot to generate. Default is "1D".
-    
+
     Returns:
         go.Figure: A plotly figure object.
-    """
+    """  # noqa: E501
     data = obj.data[identifier]
     em = obj.metadata[identifier]['Signal Metadata']['Emission']
     ex = obj.metadata[identifier]['Signal Metadata']['Excitation']
     if plot_type == "1D":
-        df = (pd.DataFrame(data,
-                           columns=em)
-            .assign(Excitation=ex)
-            .melt(
+        df = (pd.DataFrame(data, columns=em)
+              .assign(Excitation=ex)
+              .melt(
                 id_vars=['Excitation'],
                 value_name='Intensity',
-                var_name="Emission"
-            )
-            )
+                var_name="Emission"))
         fig = px.line(
             df,
             x="Emission",
@@ -42,9 +39,8 @@ def _plot_fluorescence_spectrum(
             line_group="Excitation"
         )
         fig.update_traces(
-        line=dict(width=1.2,
-                color="rgb(49,130,189)")
-        )
+            line=dict(width=1.2,
+                      color="rgb(49,130,189)"))
         return fig
 
     elif plot_type == "2D":
@@ -124,11 +120,13 @@ def _plot_spectrum_NMR_FTIR(
             )})
     return fig
 
+
 @overload
 def spectrum(
     obj: Union[FTIRDataLoader, NMRDataLoader]
 ) -> go.Figure:
     ...
+
 
 @overload
 def spectrum(
@@ -137,6 +135,7 @@ def spectrum(
     plot_type: Literal["1D", "2D"]
 ) -> go.Figure:
     ...
+
 
 def spectrum(
         obj: Union[FTIRDataLoader, NMRDataLoader, FluorescenceDataLoader],
@@ -157,7 +156,7 @@ Returns:
 Raises:
     TypeError: If the object type is unsupported.
     ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
-    """
+    """  # noqa: E501
     if isinstance(obj, (FTIRDataLoader, NMRDataLoader)):
         return _plot_spectrum_NMR_FTIR(obj)
     elif isinstance(obj, FluorescenceDataLoader):
@@ -167,7 +166,5 @@ Raises:
         return _plot_fluorescence_spectrum(obj,
                                            identifier,
                                            plot_type)
-    else: 
+    else:
         raise TypeError(f"Unsupported object type: {type(obj)}")
-    
-
