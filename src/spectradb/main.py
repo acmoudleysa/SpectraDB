@@ -38,7 +38,7 @@ class Database:
 
     def __init__(self,
                  database: Union[Path, str],
-                 table_name: str = "Measurements"
+                 table_name: str = "measurements"
                  ) -> None:
         self.database = database
         self.table_name = table_name
@@ -167,9 +167,9 @@ class Database:
                     obj.insert(idx_obj+idx_sample, dummy)
 
         entries = map(create_entries, obj)
-        query1 = """
+        query1 = f"""
 
-        INSERT OR IGNORE INTO instrument_sample_count (instrument_type, counter
+        INSERT OR IGNORE INTO {self.table_name}_instrument_sample_count (instrument_type, counter
         ) VALUES (?, 0)
         """
         query2 = f"""

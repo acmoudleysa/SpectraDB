@@ -146,19 +146,19 @@ def spectrum(
         plot_type: Optional[str] = None
 ) -> go.Figure:
     """
-Create a spectral plot from FTIR, NMR, or Fluorescence data.
+    Create a spectral plot from FTIR, NMR, or Fluorescence data.
 
-Args:
-    obj: The data loader object. Can be FTIRDataLoader, NMRDataLoader, or FluorescenceDataLoader.
-    identifier (str, optional): The identifier for the sample (only required for FluorescenceDataLoader).
-    plot_type (str, optional): The type of plot to generate ("1D" or "2D", only required for FluorescenceDataLoader).
+    Args:
+        obj: The data loader object. Can be FTIRDataLoader, NMRDataLoader, or FluorescenceDataLoader.
+        identifier (str, optional): The identifier for the sample (only required for FluorescenceDataLoader).
+        plot_type (str, optional): The type of plot to generate ("1D" or "2D", only required for FluorescenceDataLoader).
 
-Returns:
-    go.Figure: A plotly figure object.
+    Returns:
+        go.Figure: A plotly figure object.
 
-Raises:
-    TypeError: If the object type is unsupported.
-    ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
+    Raises:
+        TypeError: If the object type is unsupported.
+        ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
     """  # noqa: E501
     if isinstance(obj, (FTIRDataLoader, NMRDataLoader)):
         return _plot_spectrum_NMR_FTIR(obj)
