@@ -2,12 +2,13 @@ import sqlite3
 import json
 from spectradb.dataloaders import (FTIRDataLoader, FluorescenceDataLoader,
                                    NMRDataLoader)
-from typing import Union, List
+from typing import Union, List, Literal
 from pathlib import Path
 from spectradb.types import DataLoaderType
 from contextlib import contextmanager
 from datetime import datetime
 from dataclasses import dataclass
+import pandas as pd
 
 
 def create_entries(obj):
@@ -38,7 +39,7 @@ class Database:
 
     def __init__(self,
                  database: Union[Path, str],
-                 table_name: str = "Measurements"
+                 table_name: str = "measurements"
                  ) -> None:
         self.database = database
         self.table_name = table_name
@@ -167,11 +168,10 @@ class Database:
                     obj.insert(idx_obj+idx_sample, dummy)
 
         entries = map(create_entries, obj)
-        query1 = """
-
-        INSERT OR IGNORE INTO instrument_sample_count (instrument_type, counter
+        query1 = f"""
+        INSERT OR IGNORE INTO {self.table_name}_instrument_sample_count (instrument_type, counter
         ) VALUES (?, 0)
-        """
+        """  # noqa: E501
         query2 = f"""
         INSERT INTO {self.table_name} (
             instrument_id, measurement_date, sample_name,
@@ -229,17 +229,50 @@ class Database:
             self._connection.close()
             self._connection = None
 
-    def to_csv(self) -> None:
-        ...
+    def fetch_instrument_data(self,
+                              table_name: str,
+                              instrument_type: Literal['NMR', 'FTIR', 'FL']) -> pd.DataFrame:  # noqa: E501
+        query = f"SELECT * FROM {table_name} WHERE instrument_id = ?"
+        with self._get_cursor() as cursor:
+            cursor.execute(query, (instrument_type,))
+            data = cursor.fetchall()
+        return pd.DataFrame(data, columns=[col[0] for
+                                           col in cursor.description])
+
+    def fetch_sample_data(self,
+                          table_name: str,
+                          sample_name: str) -> pd.DataFrame:
+        if not isinstance(sample_name, str):
+            sample_name = str(sample_name)
+
+        query = f"SELECT * FROM {table_name} WHERE sample_name = ?"
+        with self._get_cursor() as cursor:
+            cursor.execute(query, (sample_name,))
+            data = cursor.fetchall()
+        return pd.DataFrame(data, columns=[col[0] for
+                                           col in cursor.description])
+
+    def get_data_by_instrument_and_sample(self,
+                                          table_name: str,
+                                          instrument_type: Literal['NMR', 'FTIR', 'FL'],  # noqa: E501
+                                          sample_name: str) -> pd.DataFrame:
+        if not isinstance(sample_name, str):
+            sample_name = str(sample_name)
+        query = f"SELECT * FROM {table_name} WHERE instrument_id = ? AND sample_name = ?"  # noqa: E501
+        with self._get_cursor() as cursor:
+            cursor.execute(query, (instrument_type, sample_name))
+            data = cursor.fetchall()
+        return pd.DataFrame(data, columns=[col[0] for
+                                           col in cursor.description])
 
 
 @dataclass(slots=True)
 class DummyClass:
     """
     A dummy class to handle fluorescence data.
-    Since fluorescence data comes with multiple rows, ensuring that they are handled properly.  # noqa: E501
+    Since fluorescence data comes with multiple rows, ensuring that they are handled properly.
     One class per row.
-    """
+    """  # noqa: E501
     data: List
     metadata: dict
     instrument_id: str
