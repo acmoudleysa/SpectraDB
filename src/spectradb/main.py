@@ -2,7 +2,7 @@ import sqlite3
 import json
 from spectradb.dataloaders import (FTIRDataLoader, FluorescenceDataLoader,
                                    NMRDataLoader)
-from typing import Union, List, Literal
+from typing import Union, List, Literal, Optional
 from pathlib import Path
 from spectradb.types import DataLoaderType
 from contextlib import contextmanager
@@ -264,6 +264,19 @@ class Database:
             data = cursor.fetchall()
         return pd.DataFrame(data, columns=[col[0] for
                                            col in cursor.description])
+
+    def execute_custom_query(self,
+                             query: str,
+                             params: Optional[tuple] = None) -> tuple:
+        if query.strip().lower().startswith("select"):
+            with self._get_cursor() as cursor:
+                cursor.execute(query, params or ())
+                results = cursor.fetchall()
+                column_names = [description[0] for description
+                                in cursor.description]
+                return results, column_names
+        else:
+            ValueError("Only SELECT queries are allowed with this method.")
 
 
 @dataclass(slots=True)
