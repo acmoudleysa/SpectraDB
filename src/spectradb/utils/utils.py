@@ -1,9 +1,9 @@
 from spectradb.dataloaders import FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader  # noqa: E501
 import plotly.graph_objects as go
-from typing import Union, Literal, overload, Optional
+from typing import Union, Literal, overload, Optional, Iterable
 import plotly_express as px
 import pandas as pd
-from collections.abc import Iterable
+from collections import abc
 
 
 def _plot_fluorescence_spectrum(
@@ -191,15 +191,20 @@ def spectrum(
         ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
     """  # noqa: E501
     # Checking if the provided object is an iterable or an element
-    if not isinstance(obj, Iterable):
+    if not isinstance(obj, abc.Iterable):
         obj = [obj]
 
     # if it's an iterable we need to make sure they are of same type
+    # Also need to make sure the user accidentally doesn't pass
+    # mutliple Fluorescence objects. It's clear from the
+    # function's type hints but just to make sure its robust.
     else:
         if not all(isinstance(object, type(obj[0])) for object in obj):
             raise TypeError("Objects should all be of the same type "
-                            "(either FTIRDataLoader or NMRDataLoader "
-                            "or FluorescenceDataLoader)")
+                            "(either FTIRDataLoader or NMRDataLoader)")
+        elif isinstance(obj[0], FluorescenceDataLoader) and len(obj) > 1:
+            raise TypeError("Multiple FluorescencenDataLoader objects "
+                            "not supported.")
 
     # if the object is of type FTIR or NMR
     if isinstance(obj[0], (FTIRDataLoader, NMRDataLoader)):
