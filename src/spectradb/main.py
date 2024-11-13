@@ -198,7 +198,7 @@ class Database:
             self,
             sample_id: Union[str, List[str]],
             *,
-            commit: bool = True
+            commit: bool = False
     ) -> None:
 
         if isinstance(sample_id, str):

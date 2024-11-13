@@ -1,9 +1,9 @@
 from spectradb.dataloaders import FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader  # noqa: E501
 import plotly.graph_objects as go
 from typing import Union, Literal, overload, Optional
-import numpy as np
 import plotly_express as px
 import pandas as pd
+from collections.abc import Iterable
 
 
 def _plot_fluorescence_spectrum(
@@ -22,9 +22,12 @@ def _plot_fluorescence_spectrum(
     Returns:
         go.Figure: A plotly figure object.
     """  # noqa: E501
+    # fetching the data from the object
     data = obj.data[identifier]
     em = obj.metadata[identifier]['Signal Metadata']['Emission']
     ex = obj.metadata[identifier]['Signal Metadata']['Excitation']
+
+    # plotting 1D figure
     if plot_type == "1D":
         df = (pd.DataFrame(data, columns=em)
               .assign(Excitation=ex)
@@ -43,6 +46,7 @@ def _plot_fluorescence_spectrum(
                       color="rgb(49,130,189)"))
         return fig
 
+    # plotting 2D figure
     elif plot_type == "2D":
         fig = go.Figure()
         fig.add_trace(go.Contour(
@@ -65,7 +69,11 @@ def _plot_fluorescence_spectrum(
 
 
 def _plot_spectrum_NMR_FTIR(
-        obj: Union[FTIRDataLoader, NMRDataLoader]
+        obj: Union[FTIRDataLoader,
+                   NMRDataLoader,
+                   Iterable[FTIRDataLoader],
+                   Iterable[NMRDataLoader]
+                   ]
 ) -> go.Figure:
     """
     Create a spectral plot from FTIR or NMR data.
@@ -80,36 +88,48 @@ def _plot_spectrum_NMR_FTIR(
     Raises:
         TypeError: If `obj` is neither `FTIRDataLoader` nor `NMRDataLoader`.
     """
-
-    if isinstance(obj, FTIRDataLoader):
-        x = obj.metadata["Signal Metadata"]["Wavenumbers"]
+    # Checking types of objects and updating the plot labels
+    if isinstance(obj[0], FTIRDataLoader):
         x_label = "Wavenumbers"
         y_label = "Transmittance"
-    elif isinstance(obj, NMRDataLoader):
-        x = obj.metadata["Signal Metadata"]["ppm"]
+    elif isinstance(obj[0], NMRDataLoader):
         x_label = "ppm"
         y_label = "Intensity"
     else:
         raise TypeError("The object shuold be an instance of `FTIRDataLoader` or `NMRDataLoader`.")  # noqa E501
 
-    y = obj.data
+    # Creating a figure
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=np.array(x, dtype=str),  # to avoid sorting
-            y=y,
-            mode="lines",
-            name=obj.metadata['Sample name'] if obj.metadata['Sample name']
-            else obj.metadata['Filename']
-        )
-    )
-    fig.update_layout(
-                      height=500,
-                      width=600,
-                      plot_bgcolor='white',
-                      showlegend=True
-                      )
+    for i, object in enumerate(obj):
+        # Fetching the x values
+        x_data = object.metadata['Signal Metadata'][x_label]
+        # Make sure the plot follows the order in which the wavelength
+        # is provided in the original file
+        if i == 0:
+            reverse_x = x_data[1] < x_data[0]
+        fig.add_trace(
+            go.Scatter(
+                x=x_data,
+                y=object.data,
+                mode="lines",
+                name=object.metadata['Sample name']
+                if object.metadata['Sample name']
+                else object.metadata['Filename']
+                )
+                )
+    # Since x ticks are float, we need to reverse it
+    # if the wavenumbers in original file were in
+    # descending order
+    if reverse_x:
+        fig.update_layout(xaxis_autorange='reversed')
 
+    # updating the figure
+    fig.update_layout(
+                    height=500,
+                    width=600,
+                    plot_bgcolor='white',
+                    showlegend=True
+                    )
     for axis in ['xaxis', 'yaxis']:
         fig.update_layout({
             axis: dict(
@@ -126,7 +146,11 @@ def _plot_spectrum_NMR_FTIR(
 
 @overload
 def spectrum(
-    obj: Union[FTIRDataLoader, NMRDataLoader]
+    obj: Union[
+        FTIRDataLoader,
+        NMRDataLoader,
+        Iterable[FTIRDataLoader],
+        Iterable[NMRDataLoader]]
 ) -> go.Figure:
     ...
 
@@ -141,7 +165,13 @@ def spectrum(
 
 
 def spectrum(
-        obj: Union[FTIRDataLoader, NMRDataLoader, FluorescenceDataLoader],
+        obj: Union[
+        FTIRDataLoader,
+        NMRDataLoader,
+        FluorescenceDataLoader,
+        Iterable[FTIRDataLoader],
+        Iterable[NMRDataLoader]
+        ],
         identifier: Optional[str] = None,
         plot_type: Optional[str] = None
 ) -> go.Figure:
@@ -160,14 +190,30 @@ def spectrum(
         TypeError: If the object type is unsupported.
         ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
     """  # noqa: E501
-    if isinstance(obj, (FTIRDataLoader, NMRDataLoader)):
+    # Checking if the provided object is an iterable or an element
+    if not isinstance(obj, Iterable):
+        obj = [obj]
+
+    # if it's an iterable we need to make sure they are of same type
+    else:
+        if not all(isinstance(object, type(obj[0])) for object in obj):
+            raise TypeError("Objects should all be of the same type "
+                            "(either FTIRDataLoader or NMRDataLoader "
+                            "or FluorescenceDataLoader)")
+
+    # if the object is of type FTIR or NMR
+    if isinstance(obj[0], (FTIRDataLoader, NMRDataLoader)):
         return _plot_spectrum_NMR_FTIR(obj)
-    elif isinstance(obj, FluorescenceDataLoader):
+
+    # If the object is of type Fluorescence
+    elif isinstance(obj[0], FluorescenceDataLoader):
         if not identifier or not plot_type:
             raise ValueError("Identifier or plot_type must be provided "
                              "for FluorescenceDataLoader object.")
-        return _plot_fluorescence_spectrum(obj,
+        return _plot_fluorescence_spectrum(obj[0],
                                            identifier,
                                            plot_type)
+
+    # Raising an error if its none of above
     else:
-        raise TypeError(f"Unsupported object type: {type(obj)}")
+        raise TypeError(f"Unsupported object type: {type(obj[0])}")
