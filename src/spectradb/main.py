@@ -6,9 +6,11 @@ from typing import Union, List, Literal, Optional
 from pathlib import Path
 from spectradb.types import DataLoaderType
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 import pandas as pd
+import os
+import shutil
 
 
 def create_entries(obj):
@@ -39,10 +41,21 @@ class Database:
 
     def __init__(self,
                  database: Union[Path, str],
-                 table_name: str = "measurements"
+                 table_name: str = "measurements",
+                 backup: bool = True,
+                 backup_interval: int = True,
+                 max_backups: int = 2
                  ) -> None:
         self.database = database
         self.table_name = table_name
+
+        self.backup = backup
+        self.backup_dir = Path(database).parent/"database_backup"
+        self.backup_interval = backup_interval
+        self.max_backups = max_backups
+        if self.backup:
+            Path.mkdir(self.backup_dir, exist_ok=True)
+
         self._connection = None
 
     def __enter__(self):
@@ -91,6 +104,42 @@ class Database:
             raise e
         finally:
             cursor.close()
+
+    def _periodic_backup(self):
+        if not self.backup:
+            return
+
+        current_time = datetime.now()
+        latest_backup = max(self.backup_dir.glob("*.sqlite"),
+                            default=None,
+                            key=os.path.getctime)
+
+        if latest_backup:
+            last_backup_time = datetime.fromtimestamp(
+                os.path.getctime(latest_backup)
+            )
+            if (current_time - last_backup_time) < timedelta(hours=self.backup_interval):  # noqa E51
+                return
+
+        timestamp = current_time.strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"{Path(self.database).stem}_periodic_backup_{timestamp}.sqlite"  # noqa E51
+        backup_path = self.backup_dir/backup_filename
+
+        try:
+            shutil.copy2(self.database,
+                         backup_path)
+            self._manage_backups()
+        except Exception as e:
+            raise e
+
+    def _manage_backups(self):
+        backups = sorted(
+            self.backup_dir.glob(
+                f"{Path(self.database).stem}_periodic_backup_*"),
+            key=os.path.getctime
+        )
+        while len(backups) >= self.max_backups:
+            os.remove(backups.pop(0))
 
     def __create_table(self) -> None:
         """
@@ -150,6 +199,8 @@ class Database:
             obj: A data loader object or iterable of data loader objects.
             commit: Whether to commit immediately.
         """
+        self._periodic_backup()
+
         if isinstance(obj, (FluorescenceDataLoader,
                             FTIRDataLoader,
                             NMRDataLoader)):
@@ -200,6 +251,7 @@ class Database:
             *,
             commit: bool = False
     ) -> None:
+        self._periodic_backup()
 
         if isinstance(sample_id, str):
             sample_id = [sample_id]
