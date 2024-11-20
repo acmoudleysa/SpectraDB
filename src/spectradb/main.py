@@ -232,7 +232,7 @@ class Database:
     def fetch_instrument_data(self,
                               table_name: str,
                               instrument_type: Literal['NMR', 'FTIR', 'FL']) -> pd.DataFrame:  # noqa: E501
-        query = f"SELECT * FROM {table_name} WHERE instrument_id = ?"
+        query = f"SELECT * FROM {table_name} WHERE instrument_id = ? ORDER BY measurement_id"  # noqa: E501
         with self._get_cursor() as cursor:
             cursor.execute(query, (instrument_type,))
             data = cursor.fetchall()
@@ -241,13 +241,14 @@ class Database:
 
     def fetch_sample_data(self,
                           table_name: str,
-                          sample_name: str) -> pd.DataFrame:
-        if not isinstance(sample_name, str):
-            sample_name = str(sample_name)
+                          sample_info: str,
+                          col_name: str = "sample_name") -> pd.DataFrame:
+        if not isinstance(sample_info, str):
+            sample_info = str(sample_info)
 
-        query = f"SELECT * FROM {table_name} WHERE sample_name = ?"
+        query = f"SELECT * FROM {table_name} WHERE {col_name} = ?"
         with self._get_cursor() as cursor:
-            cursor.execute(query, (sample_name,))
+            cursor.execute(query, (sample_info,))
             data = cursor.fetchall()
         return pd.DataFrame(data, columns=[col[0] for
                                            col in cursor.description])
