@@ -15,7 +15,6 @@ class InstrumentID(Enum):
     FTIR = "FTIR"
     NMR = "NMR"
     Fluorescence = "FL"
-    GC = "GC"
     RAMAN = "RAMAN"
 
 
@@ -33,6 +32,8 @@ class BaseDataLoader(ABC):
         metadata (Dict): Dictionary to store metadata information.
     """
     filepath: Path
+    _load_data_on_init: bool = True
+
     data: Dict = field(init=False, default_factory=dict)
     _df: pd.DataFrame = field(init=False, default=None)
     metadata: Dict = field(init=False, default_factory=dict)
@@ -47,7 +48,8 @@ class BaseDataLoader(ABC):
                             got {type(self.filepath).__name__}")
         self.filepath = Path(self.filepath)
         self.validate_data()
-        self.load_data()
+        if self._load_data_on_init:
+            self.load_data()
 
     @abstractmethod
     def load_data(self) -> Dict:
