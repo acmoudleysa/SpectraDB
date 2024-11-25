@@ -13,7 +13,7 @@ import os
 import shutil
 import numpy as np
 from itertools import product
-from spectradb.utils import spectrum
+from spectradb.utils import spectrum, validate_dataframe
 import plotly.graph_objects as go
 
 
@@ -148,9 +148,7 @@ class Database:
         """
         Creates a table in the SQLite database if it does not already exist.
         """
-        trigger_name = f"""{self.table_name}_generate_sample_id" if
-                        self.table_name != "measurements" else
-                        "generate_sample_id"""
+        trigger_name = f"{self.table_name}_generate_sample_id" if self.table_name != "measurements" else "generate_sample_id"
         query = f"""
 
         CREATE TABLE IF NOT EXISTS {self.table_name}_instrument_sample_count (
@@ -446,8 +444,8 @@ class Database:
                   pd.DataFrame(data, columns=columns)],
             axis=1)
 
+    @validate_dataframe
     def create_spectrum(self,
-                        *,
                         sample_ids: str | List[str] = None,
                         table_name: str = None,
                         df: pd.DataFrame = None,
@@ -462,8 +460,7 @@ class Database:
                 if table_name is not None
                 else self.table_name,
                 col_name="sample_id",
-                ordered=True
-            )
+                ordered=True)
         if len(df.instrument_id.unique()) != 1:
             raise TypeError("Only one type of spectroscopic method allowed.")
 

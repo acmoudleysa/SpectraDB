@@ -1,7 +1,7 @@
-from .utils import (
-    spectrum
-)
+from .utils import spectrum
+from .decorators import validate_dataframe
 
 __all__ = [
-    "spectrum"
+    "spectrum",
+    "validate_dataframe"
 ]

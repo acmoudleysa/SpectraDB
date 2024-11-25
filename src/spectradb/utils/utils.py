@@ -124,10 +124,10 @@ def _plot_spectrum_NMR_FTIR(
         fig.update_layout(xaxis_autorange='reversed')
 
 # Update all traces with the same hover template
-    hover_template = f'{x_label}: %{{x}}<br>{y_label}: %{{y}}<extra></extra>'
     for trace in fig.data:
-        trace.hovertemplate = hover_template
-    # updating the figure
+        trace.hovertemplate = 'Name: %{data.name}<br>' + \
+                            f'{x_label}: %{{x}}<br>' + \
+                            f'{y_label}: %{{y}}<extra></extra>'
     fig.update_layout(
                     height=500,
                     width=600,
