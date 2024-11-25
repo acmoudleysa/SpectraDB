@@ -47,7 +47,7 @@ class Database:
                  database: Union[Path, str],
                  table_name: str = "measurements",
                  backup: bool = True,
-                 backup_interval: int = True,
+                 backup_interval: int = 12,
                  max_backups: int = 2
                  ) -> None:
         self.database = database
@@ -130,8 +130,7 @@ class Database:
         backup_path = self.backup_dir/backup_filename
 
         try:
-            shutil.copy2(self.database,
-                         backup_path)
+            shutil.copy2(self.database, backup_path)
             self._manage_backups()
         except Exception as e:
             raise e
@@ -142,13 +141,16 @@ class Database:
                 f"{Path(self.database).stem}_periodic_backup_*"),
             key=os.path.getctime
         )
-        while len(backups) >= self.max_backups:
-            os.remove(backups.pop(0))
+        if len(backups) > self.max_backups:
+            os.remove(backups[0])
 
     def __create_table(self) -> None:
         """
         Creates a table in the SQLite database if it does not already exist.
         """
+        trigger_name = f"""{self.table_name}_generate_sample_id" if
+                        self.table_name != "measurements" else
+                        "generate_sample_id"""
         query = f"""
 
         CREATE TABLE IF NOT EXISTS {self.table_name}_instrument_sample_count (
@@ -172,7 +174,7 @@ class Database:
             UNIQUE(instrument_id, sample_name, internal_code, comments)
         );
 
-        CREATE TRIGGER IF NOT EXISTS generate_sample_id
+        CREATE TRIGGER IF NOT EXISTS {trigger_name}
         AFTER INSERT ON {self.table_name}
         BEGIN
             UPDATE {self.table_name}_instrument_sample_count
@@ -257,7 +259,6 @@ class Database:
             sample_id: str | List[str],
             *,
             commit: bool = False) -> None:
-        self._periodic_backup()
 
         if isinstance(sample_id, str):
             sample_id = [sample_id]
@@ -273,6 +274,7 @@ class Database:
         with self._get_cursor() as cursor:
             cursor.execute(query, sample_id)
             if commit:
+                self._periodic_backup()
                 self._connection.commit()
 
     def open_connection(self) -> None:
@@ -298,20 +300,39 @@ class Database:
                                            col in cursor.description])
 
     def fetch_sample_data(self,
-                          sample_info: Union[str, List[str]],
-                          col_name: str = "sample_name") -> pd.DataFrame:
+                          sample_info: str | List[str],
+                          table_name: str = None,
+                          col_name: str = "sample_name",
+                          ordered: bool = False) -> pd.DataFrame:
         if isinstance(sample_info, str):
             sample_info = [sample_info]
 
-        # Build the query dynamically based on the number of samples
-        placeholders = ", ".join("?" for _ in sample_info)
-        query = f"SELECT * FROM {self.table_name} WHERE {col_name} IN ({placeholders})"  # noqa: E501
+        target_table = table_name or self.table_name
+        # Base query preparation
+        placeholders = ', '.join('?' for _ in sample_info)
+
+        if ordered:
+            # SQL with order preservation
+            query = f"""
+            SELECT *
+            FROM {target_table}
+            WHERE {col_name} IN ({placeholders})
+            ORDER BY CASE {col_name}
+                    {' '.join(f"WHEN '{sample}' THEN {i}" for
+                              i, sample in enumerate(sample_info))}
+                    END
+            """
+        else:
+            # Standard query
+            query = f"""SELECT * FROM {target_table}
+                    WHERE {col_name} IN ({placeholders})"""
 
         with self._get_cursor() as cursor:
             cursor.execute(query, tuple(sample_info))
             data = cursor.fetchall()
-        return pd.DataFrame(data,
-                            columns=[col[0] for col in cursor.description])
+
+        return pd.DataFrame(data, columns=[col[0]
+                                           for col in cursor.description])
 
     def get_data_by_instrument_and_sample(self,
                                           instrument_type: Literal['NMR', 'FTIR', 'FL'],  # noqa: E501
@@ -340,14 +361,22 @@ class Database:
 
     def transform_data_for_analysis(
             self,
-            instrument_type: Literal[
-                "NMR", "FTIR", "FL"
-            ],
+            instrument_type: Literal["NMR",
+                                     "FTIR",
+                                     "FL"],
+            sample_ids: List[str] = None,
             reference_sample_id: str = None,
             output_format: Literal["df",
                                    "csv"] = "df"
     ) -> dict | None:
-        df = self.fetch_instrument_data(instrument_type)
+        if sample_ids:
+            df = self.fetch_sample_data(
+                sample_info=sample_ids,
+                col_name="sample_id"
+            )
+        else:
+            df = self.fetch_instrument_data(instrument_type)
+
         instrument_config = {
             "NMR": "ppm",
             "FTIR": "Wavenumbers",
@@ -405,20 +434,36 @@ class Database:
 
         df_filtered = df[df['signal_metadata'].apply(
             lambda x: is_valid(json.loads(x)))]
-        data = transform_fn(df_filtered)
-        return pd.concat(objs=[
-            df_filtered[['sample_name', 'internal_code']],
-            pd.DataFrame(data,
-                         columns=columns)],
-                         axis=1)
+
+        try:
+            data = transform_fn(df_filtered)
+        except ValueError:
+            raise ValueError("Unable to stack data array due to "
+                             "inconsistent lengths")
+
+        return pd.concat(
+            objs=[df_filtered[['sample_name', 'internal_code']],
+                  pd.DataFrame(data, columns=columns)],
+            axis=1)
 
     def create_spectrum(self,
-                        sample_id: str | List[str],
+                        *,
+                        sample_ids: str | List[str] = None,
+                        table_name: str = None,
+                        df: pd.DataFrame = None,
+                        fl_plot_type: Literal["1D", "2D"] = "2D"
                         ) -> go.Figure:
-        df = self.fetch_sample_data(
-            sample_info=sample_id,
-            col_name="sample_id"
-        )
+        if df is None:
+            if sample_ids is None:
+                raise ValueError("Either df or sample_ids must be provided")
+            df = self.fetch_sample_data(
+                sample_info=sample_ids,
+                table_name=table_name
+                if table_name is not None
+                else self.table_name,
+                col_name="sample_id",
+                ordered=True
+            )
         if len(df.instrument_id.unique()) != 1:
             raise TypeError("Only one type of spectroscopic method allowed.")
 
@@ -429,19 +474,36 @@ class Database:
             "FTIR": (FTIRDataLoader, Path("dummy.spa")),
         }
         cls, dummyfile = loaders[ins_type]
-        dummy_objs = []
+
         # I could use the DummyClass here but the issue was that `spectrum`
         # only takes instances of dataloaders.
-        for row in df.itertuples():
-            dummy_dl_ins = cls(dummyfile,
-                               _load_data_on_init=False)
-            dummy_dl_ins.data = json.loads(row.data)
-            dummy_dl_ins.metadata = {
-                "Sample name": row.sample_name,
-                "Signal Metadata": json.loads(row.signal_metadata)
-            }
-            dummy_objs.append(dummy_dl_ins)
-        return spectrum(dummy_objs)
+        dummy_objs = []
+
+        if ins_type in ["NMR", "FTIR"]:
+            for row in df.itertuples():
+                dummy_dl_ins = cls(dummyfile,
+                                   _load_data_on_init=False)
+                dummy_dl_ins.data = json.loads(row.data)
+                dummy_dl_ins.metadata = {
+                    "Sample name": row.sample_name,
+                    "Signal Metadata": json.loads(row.signal_metadata)
+                }
+                dummy_objs.append(dummy_dl_ins)
+            return spectrum(dummy_objs)
+
+        else:
+            for row in df.itertuples():
+                dummy_dl_ins = cls(dummyfile,
+                                   _load_data_on_init=False)
+                dummy_dl_ins.data['S1'] = json.loads(row.data)
+                dummy_dl_ins.metadata['S1'] = {
+                        "Sample name": row.sample_name,
+                        "Signal Metadata": json.loads(row.signal_metadata)
+                    }
+            return spectrum(dummy_dl_ins,
+                            identifier="S1",
+                            plot_type=fl_plot_type,
+                            )
 
 
 @dataclass(slots=True)
