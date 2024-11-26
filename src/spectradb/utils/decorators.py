@@ -4,7 +4,6 @@ import json
 def validate_dataframe(method):
     def wrapper(self, *args, **kwargs):
         df = kwargs.get('df')
-        print("hello")
         if df is not None:
             required_columns = ['measurement_id',
                                 'sample_id',

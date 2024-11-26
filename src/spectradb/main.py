@@ -148,9 +148,10 @@ class Database:
         """
         Creates a table in the SQLite database if it does not already exist.
         """
-        trigger_name = f"{self.table_name}_generate_sample_id" if self.table_name != "measurements" else "generate_sample_id"
+        trigger_name = (f"{self.table_name}_generate_sample_id"
+                        if self.table_name != "measurements"
+                        else "generate_sample_id")
         query = f"""
-
         CREATE TABLE IF NOT EXISTS {self.table_name}_instrument_sample_count (
         instrument_type TEXT PRIMARY KEY,
         counter INTEGER DEFAULT 0
@@ -203,7 +204,6 @@ class Database:
             obj: A data loader object or iterable of data loader objects.
             commit: Whether to commit immediately.
         """
-        self._periodic_backup()
 
         if isinstance(obj, (FluorescenceDataLoader,
                             FTIRDataLoader,
@@ -245,6 +245,7 @@ class Database:
             cursor.executemany(query1, [(inst_ins.instrument_id,)
                                         for inst_ins in obj])
             if commit:
+                self._periodic_backup()
                 self._connection.commit()
 
         with self._get_cursor() as cursor:
@@ -499,8 +500,7 @@ class Database:
                     }
             return spectrum(dummy_dl_ins,
                             identifier="S1",
-                            plot_type=fl_plot_type,
-                            )
+                            plot_type=fl_plot_type)
 
 
 @dataclass(slots=True)
