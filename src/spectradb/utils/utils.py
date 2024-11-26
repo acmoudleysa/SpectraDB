@@ -1,71 +1,82 @@
 from spectradb.dataloaders import FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader  # noqa: E501
 import plotly.graph_objects as go
-from typing import Union, Literal, overload, Optional, Iterable
+from typing import Union, Literal, overload, Optional, Iterable, Dict, List
 import plotly_express as px
 import pandas as pd
-from collections import abc
 
 
 def _plot_fluorescence_spectrum(
-        obj: FluorescenceDataLoader,
-        identifier: str,
-        plot_type: Literal["1D", "2D"]
-) -> go.Figure:
-    """
-    Plot fluorescence spectrum using either 1D or 2D representation.
+        obj: FluorescenceDataLoader | Dict[str, FluorescenceDataLoader],
+        identifier: str | List[str] | Dict[str, List[str]] | Dict[str, str],
+        plot_type: str = "1D") -> go.Figure | List[go.Figure]:
+    if plot_type not in ["1D", "2D"]:
+        raise ValueError("Type of plot can only be 1D or 2D")
 
-    Args:
-        obj (FluorescenceDataLoader): The data loader object.
-        identifier (str): The identifier for the specific sample.
-        plot_type (Literal["1D", "2D"]): The type of plot to generate. Default is "1D".
+    if not isinstance(obj, dict):
+        obj = {"obj1": obj}
 
-    Returns:
-        go.Figure: A plotly figure object.
-    """  # noqa: E501
-    # fetching the data from the object
-    data = obj.data[identifier]
-    em = obj.metadata[identifier]['Signal Metadata']['Emission']
-    ex = obj.metadata[identifier]['Signal Metadata']['Excitation']
+    if isinstance(identifier, (str, list)):
+        identifier = {"obj1": [identifier] if isinstance(identifier, str)
+                      else identifier}
 
-    # plotting 1D figure
+    plot_data = []
+    for obj_name, dataloader in obj.items():
+        selected_identifier = identifier.get(obj_name)
+        if not selected_identifier:
+            raise ValueError(f"No identifier specified for object {obj_name}")
+        if isinstance(selected_identifier, str):
+            selected_identifier = [selected_identifier]
+        invalid_ids = set(selected_identifier) - dataloader.metadata.keys()
+        if invalid_ids:
+            raise ValueError(f"Invalid identifiers {invalid_ids} "
+                             f"for {obj_name}.")
+
+        for id_ in selected_identifier:
+            data = dataloader.data[id_]
+            em = dataloader.metadata[id_]['Signal Metadata']['Emission']
+            ex = dataloader.metadata[id_]['Signal Metadata']['Excitation']  # noqa E501
+            name = dataloader.metadata[id_]['Sample name']
+            plot_data.append((data, em, ex, name))
+
     if plot_type == "1D":
-        df = (pd.DataFrame(data, columns=em)
-              .assign(Excitation=ex)
-              .melt(
-                id_vars=['Excitation'],
-                value_name='Intensity',
-                var_name="Emission"))
+        combined_df = pd.concat([(pd.DataFrame(data, columns=em)
+                                  .assign(Excitation=ex, Identifier=name)
+                                  .melt(id_vars=['Excitation', 'Identifier'],
+                                        value_name='Intensity',
+                                        var_name='Emission'))
+                                for data, em, ex, name in plot_data],
+                                ignore_index=True)
+        single_identifier = (combined_df['Identifier'].nunique() == 1)
         fig = px.line(
-            df,
+            combined_df,
             x="Emission",
             y="Intensity",
-            line_group="Excitation"
+            line_group="Excitation",
+            **({"color": "Identifier"} if not single_identifier else {})
         )
-        fig.update_traces(
-            line=dict(width=1.2,
-                      color="rgb(49,130,189)"))
+        fig.update_traces(line=dict(width=1.5))
         return fig
 
-    # plotting 2D figure
     elif plot_type == "2D":
-        fig = go.Figure()
-        fig.add_trace(go.Contour(
-            z=data,
-            x=em,
-            y=ex,
-            colorscale="Cividis",
-            colorbar=dict(title="Intensity")
-        ))
-
-        fig.update_xaxes(nticks=10, title_text='Emission')
-        fig.update_yaxes(nticks=10, title_text='Excitation')
-        fig.update_layout(
-            height=500,
-            width=600
-        )
-        return fig
-    else:
-        raise TypeError("Type of plot can only be 1D or 2D.")
+        figures = []
+        for data, em, ex, name in plot_data:
+            fig = go.Figure()
+            fig.add_trace(go.Contour(
+                z=data,
+                x=em,
+                y=ex,
+                colorscale="Cividis",
+                colorbar=dict(title="Intensity")
+            ))
+            fig.update_xaxes(nticks=10, title_text='Emission')
+            fig.update_yaxes(nticks=10, title_text='Excitation')
+            fig.update_layout(
+                title=name,
+                height=500,
+                width=600
+            )
+            figures.append(fig)
+        return figures
 
 
 def _plot_spectrum_NMR_FTIR(
@@ -150,35 +161,36 @@ def _plot_spectrum_NMR_FTIR(
 
 @overload
 def spectrum(
-    obj: Union[
-        FTIRDataLoader,
-        NMRDataLoader,
-        Iterable[FTIRDataLoader],
-        Iterable[NMRDataLoader]]
+    obj: FTIRDataLoader | NMRDataLoader | Iterable[FTIRDataLoader]
+    | Iterable[NMRDataLoader]
 ) -> go.Figure:
     ...
 
 
 @overload
 def spectrum(
-    obj: FluorescenceDataLoader,
-    identifier: str,
+    obj: FluorescenceDataLoader | Dict[str, FluorescenceDataLoader],
+    identifier: str | List[str] | Dict[str, List[str]] | Dict[str, str],
     plot_type: Literal["1D", "2D"]
-) -> go.Figure:
+) -> go.Figure | List[go.Figure]:
     ...
 
 
 def spectrum(
-        obj: Union[
-        FTIRDataLoader,
-        NMRDataLoader,
-        FluorescenceDataLoader,
-        Iterable[FTIRDataLoader],
-        Iterable[NMRDataLoader]
-        ],
-        identifier: Optional[str] = None,
-        plot_type: Optional[str] = None
-) -> go.Figure:
+    obj: (
+        FTIRDataLoader
+        | NMRDataLoader
+        | FluorescenceDataLoader
+        | Iterable[FTIRDataLoader]
+        | Iterable[NMRDataLoader]
+        | Dict[str, FluorescenceDataLoader]
+    ),
+    identifier: Optional[str
+                         | list[str]
+                         | Dict[str, list[str]]
+                         | Dict[str, str]] = None,
+    plot_type: Optional[Literal["1D", "2D"]] = None
+) -> go.Figure | List[go.Figure]:
     """
     Create a spectral plot from FTIR, NMR, or Fluorescence data.
 
@@ -194,35 +206,16 @@ def spectrum(
         TypeError: If the object type is unsupported.
         ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
     """  # noqa: E501
-    # Checking if the provided object is an iterable or an element
-    if not isinstance(obj, abc.Iterable):
-        obj = [obj]
-
-    # if it's an iterable we need to make sure they are of same type
-    # Also need to make sure the user accidentally doesn't pass
-    # mutliple Fluorescence objects. It's clear from the
-    # function's type hints but just to make sure its robust.
-    else:
-        if not all(isinstance(object, type(obj[0])) for object in obj):
-            raise TypeError("Objects should all be of the same type "
-                            "(either FTIRDataLoader or NMRDataLoader)")
-        elif isinstance(obj[0], FluorescenceDataLoader) and len(obj) > 1:
-            raise TypeError("Multiple FluorescencenDataLoader objects "
-                            "not supported.")
-
-    # if the object is of type FTIR or NMR
-    if isinstance(obj[0], (FTIRDataLoader, NMRDataLoader)):
+    if isinstance(obj, (FTIRDataLoader, NMRDataLoader)) or (
+        isinstance(obj, list) and
+        all(isinstance(o, (FTIRDataLoader, NMRDataLoader)) for o in obj)
+    ):
+        # Route to NMR/FTIR plotting function
         return _plot_spectrum_NMR_FTIR(obj)
-
-    # If the object is of type Fluorescence
-    elif isinstance(obj[0], FluorescenceDataLoader):
+    if isinstance(obj, (FluorescenceDataLoader, dict)):
         if not identifier or not plot_type:
-            raise ValueError("Identifier or plot_type must be provided "
-                             "for FluorescenceDataLoader object.")
-        return _plot_fluorescence_spectrum(obj[0],
-                                           identifier,
-                                           plot_type)
+            raise ValueError("For FluorescenceDataLoader, 'identifier' "
+                             "and 'plot_type' are required.")
+        return _plot_fluorescence_spectrum(obj, identifier, plot_type)
 
-    # Raising an error if its none of above
-    else:
-        raise TypeError(f"Unsupported object type: {type(obj[0])}")
+    raise TypeError("Unsupported object types")

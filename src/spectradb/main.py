@@ -498,9 +498,16 @@ class Database:
                         "Sample name": row.sample_name,
                         "Signal Metadata": json.loads(row.signal_metadata)
                     }
-            return spectrum(dummy_dl_ins,
-                            identifier="S1",
-                            plot_type=fl_plot_type)
+                dummy_objs.append(dummy_dl_ins)
+            
+            objs = {f"obj{i}": obj for i, obj in enumerate(dummy_objs,
+                                                           start=1)}
+            ids = {f"obj{i}": ["S1"]
+                   for i in range(1, len(dummy_objs)+1)}
+            return spectrum(
+                obj=objs,
+                identifier=ids,
+                plot_type=fl_plot_type)
 
 
 @dataclass(slots=True)
