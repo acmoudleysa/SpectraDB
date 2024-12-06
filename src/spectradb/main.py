@@ -114,10 +114,11 @@ class Database:
             return
 
         current_time = datetime.now()
-        latest_backup = max(self.backup_dir.glob("*.sqlite"),
-                            default=None,
-                            key=os.path.getctime)
-
+        latest_backup = max(
+            self.backup_dir.glob(f"{Path(self.database).stem}_periodic_backup_*"),
+            default=None,
+            key=os.path.getctime
+            )
         if latest_backup:
             last_backup_time = datetime.fromtimestamp(
                 os.path.getctime(latest_backup)
