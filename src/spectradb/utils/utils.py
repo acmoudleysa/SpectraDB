@@ -100,6 +100,8 @@ def _plot_spectrum_NMR_FTIR(
         TypeError: If `obj` is neither `FTIRDataLoader` nor `NMRDataLoader`.
     """
     # Checking types of objects and updating the plot labels
+    if isinstance(obj, (FTIRDataLoader, NMRDataLoader)):
+        obj = [obj]
     if isinstance(obj[0], FTIRDataLoader):
         x_label = "Wavenumbers"
         y_label = "Transmittance"
