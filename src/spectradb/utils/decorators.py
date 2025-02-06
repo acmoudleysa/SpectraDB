@@ -14,7 +14,7 @@ def validate_dataframe(method):
                                 'collected_by',
                                 'comments',
                                 'data',
-                                'signal_metadata',
+                                'metadata_id',
                                 'date_added']
 
             # Check column existence
@@ -24,12 +24,10 @@ def validate_dataframe(method):
                 raise ValueError(f"Missing required columns:{missing_columns}")  # noqa E51
             # Validate data parsing
             try:
-                # Attempt to parse first row's data and metadata
+                # Attempt to parse first row's data
                 json.loads(df.iloc[0].data)
-                json.loads(df.iloc[0].signal_metadata)
             except (json.JSONDecodeError, TypeError):
-                raise ValueError("Invalid JSON in data or "
-                                 "signal_metadata columns")
+                raise ValueError("Invalid JSON in data column")
 
         return method(self, *args, **kwargs)
     return wrapper
