@@ -115,7 +115,7 @@ class Database:
 
         current_time = datetime.now()
         latest_backup = max(
-            self.backup_dir.glob(f"{Path(self.database).stem}_periodic_backup_*"),
+            self.backup_dir.glob(f"{Path(self.database).stem}_periodic_backup_*"),  # noqa E501
             default=None,
             key=os.path.getctime
             )
@@ -123,11 +123,11 @@ class Database:
             last_backup_time = datetime.fromtimestamp(
                 os.path.getctime(latest_backup)
             )
-            if (current_time - last_backup_time) < timedelta(hours=self.backup_interval):  # noqa E51
+            if (current_time - last_backup_time) < timedelta(hours=self.backup_interval):  # noqa E501
                 return
 
         timestamp = current_time.strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"{Path(self.database).stem}_periodic_backup_{timestamp}.sqlite"  # noqa E51
+        backup_filename = f"{Path(self.database).stem}_periodic_backup_{timestamp}.sqlite"  # noqa E501
         backup_path = self.backup_dir/backup_filename
 
         try:
@@ -158,6 +158,11 @@ class Database:
         counter INTEGER DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS signal_metadata (
+        metadata_id INTEGER PRIMARY KEY, -- Refer to this site https://www.sqlite.org/autoinc.html  # noqa E501
+        metadata TEXT UNIQUE
+        );
+
 
         CREATE TABLE IF NOT EXISTS {self.table_name} (
             measurement_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,8 +174,8 @@ class Database:
             collected_by TEXT,
             comments TEXT,
             data TEXT,
-            signal_metadata TEXT,
             date_added TEXT,
+            metadata_id INTEGER, -- Reference to signal_metadata table
             UNIQUE(instrument_id, sample_name, internal_code, comments)
         );
 
@@ -226,32 +231,40 @@ class Database:
                     )
                     obj.insert(idx_obj+idx_sample, dummy)
 
-        entries = map(create_entries, obj)
+        entries = list(map(create_entries, obj))
         query1 = f"""
-        INSERT OR IGNORE INTO {self.table_name}_instrument_sample_count (instrument_type, counter
-        ) VALUES (?, 0)
-        """  # noqa: E501
-        query2 = f"""
+                INSERT OR IGNORE INTO {self.table_name}_instrument_sample_count
+                (instrument_type, counter)
+                VALUES (?, 0)
+                """
+
+        query2 = """
+                INSERT OR IGNORE INTO signal_metadata (metadata)
+                VALUES (?)
+                """
+
+        query3 = f"""
         INSERT INTO {self.table_name} (
             instrument_id, measurement_date, sample_name,
             internal_code, collected_by, comments,
-            data, signal_metadata, date_added
+            data, date_added, metadata_id
         ) VALUES (
             :instrument_id, :measurement_date, :sample_name,
             :internal_code, :collected_by, :comments,
-            :data, :signal_metadata, :date_added
+            :data, :date_added,
+            (SELECT metadata_id FROM signal_metadata
+            WHERE metadata = :signal_metadata)
         )
         """
         with self._get_cursor() as cursor:
             cursor.executemany(query1, [(inst_ins.instrument_id,)
                                         for inst_ins in obj])
+            cursor.executemany(query2, [(entry['signal_metadata'],)
+                                        for entry in entries])
+            cursor.executemany(query3, entries)
+
             if commit:
                 self._periodic_backup()
-                self._connection.commit()
-
-        with self._get_cursor() as cursor:
-            cursor.executemany(query2, entries)
-            if commit:
                 self._connection.commit()
 
     def remove_sample(
@@ -312,7 +325,7 @@ class Database:
         placeholders = ', '.join('?' for _ in sample_info)
 
         if ordered:
-            # SQL with order preservation
+            # SQL with order preservation (slow)
             query = f"""
             SELECT *
             FROM {target_table}
@@ -323,7 +336,7 @@ class Database:
                     END
             """
         else:
-            # Standard query
+            # Standard query (much faster)
             query = f"""SELECT * FROM {target_table}
                     WHERE {col_name} IN ({placeholders})"""
 
@@ -402,9 +415,17 @@ class Database:
                     metadata_key: str | tuple) -> pd.DataFrame:
         if reference_id:
             ref_sample = df[df.sample_id == reference_id].iloc[0]
-            ref_metadata = json.loads(ref_sample['signal_metadata'])
+            ref_metadata_id = ref_sample['metadata_id']
         else:
-            ref_metadata = json.loads(df.iloc[0]['signal_metadata'])
+            ref_metadata_id = df.iloc[0]['metadata_id']
+        query = """
+            SELECT metadata
+            FROM signal_metadata
+            WHERE metadata_id = ?
+            """
+        with self._get_cursor() as cursor:
+            cursor.execute(query, (int(ref_metadata_id),))
+            ref_metadata = json.loads(cursor.fetchone()[0])
 
         if isinstance(metadata_key, tuple):
             ref_data = {key: ref_metadata[key] for key in metadata_key}
@@ -413,9 +434,9 @@ class Database:
                 for ex, em in
                 product(ref_data[metadata_key[0]], ref_data[metadata_key[1]])
                 ]
-            is_valid = lambda meta: all(  # noqa E731
-                len(meta[key]) == len(ref_data[key]) for key in metadata_key
-                )
+            # is_valid = lambda meta: all(  # noqa E731
+            #     len(meta[key]) == len(ref_data[key]) for key in metadata_key
+            #     )
             transform_fn = lambda df: np.array(df  # noqa E731
                                                .data
                                                .map(json.loads)
@@ -426,14 +447,13 @@ class Database:
         else:
             ref_data = ref_metadata[metadata_key]
             columns = ref_data
-            is_valid = lambda meta: len(meta[metadata_key]) == len(ref_data)  # noqa E731
+            # is_valid = lambda meta: len(meta[metadata_key]) == len(ref_data)  # noqa E731
             transform_fn = lambda df: np.vstack(df  # noqa E731
                                                 .data
                                                 .map(json.loads)
                                                 .tolist())
 
-        df_filtered = df[df['signal_metadata'].apply(
-            lambda x: is_valid(json.loads(x)))]
+        df_filtered = df[df['metadata_id'] == ref_metadata_id]
 
         try:
             data = transform_fn(df_filtered)
@@ -478,14 +498,24 @@ class Database:
         # only takes instances of dataloaders.
         dummy_objs = []
 
+        query = """
+            SELECT metadata
+            FROM signal_metadata
+            WHERE metadata_id = ?
+            """
         if ins_type in ["NMR", "FTIR"]:
             for row in df.itertuples():
                 dummy_dl_ins = cls(dummyfile,
                                    _load_data_on_init=False)
                 dummy_dl_ins.data = json.loads(row.data)
+
+                with self._get_cursor() as cursor:
+                    cursor.execute(query, (int(row.metadata_id),))
+                    signal_metadata = json.loads(cursor.fetchone()[0])
+
                 dummy_dl_ins.metadata = {
                     "Sample name": row.sample_name,
-                    "Signal Metadata": json.loads(row.signal_metadata)
+                    "Signal Metadata": signal_metadata
                 }
                 dummy_objs.append(dummy_dl_ins)
             return spectrum(dummy_objs)
@@ -495,12 +525,15 @@ class Database:
                 dummy_dl_ins = cls(dummyfile,
                                    _load_data_on_init=False)
                 dummy_dl_ins.data['S1'] = json.loads(row.data)
+                with self._get_cursor() as cursor:
+                    cursor.execute(query, (int(row.metadata_id),))
+                    signal_metadata = json.loads(cursor.fetchone()[0])
                 dummy_dl_ins.metadata['S1'] = {
                         "Sample name": row.sample_name,
-                        "Signal Metadata": json.loads(row.signal_metadata)
+                        "Signal Metadata": signal_metadata
                     }
                 dummy_objs.append(dummy_dl_ins)
-            
+
             objs = {f"obj{i}": obj for i, obj in enumerate(dummy_objs,
                                                            start=1)}
             ids = {f"obj{i}": ["S1"]

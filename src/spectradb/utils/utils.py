@@ -76,6 +76,8 @@ def _plot_fluorescence_spectrum(
                 width=600
             )
             figures.append(fig)
+        if len(obj) == 1:
+            return figures[0]
         return figures
 
 
