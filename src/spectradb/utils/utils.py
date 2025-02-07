@@ -1,8 +1,54 @@
 from spectradb.dataloaders import FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader  # noqa: E501
 import plotly.graph_objects as go
-from typing import Union, Literal, overload, Optional, Iterable, Dict, List
+from typing import Union, Literal, Iterable, Dict, List, overload
 import plotly_express as px
 import pandas as pd
+from functools import singledispatch
+
+
+@singledispatch
+def spectrum(obj, *args, **kwargs):
+    """Generic spectrum function as a fallback
+    """
+    raise TypeError(f"Unsupported object type: {type(obj)}")
+
+
+@spectrum.register
+def _(obj: FTIRDataLoader) -> go.Figure:
+    return _plot_spectrum_NMR_FTIR(obj)
+
+
+@spectrum.register
+def _(obj: NMRDataLoader) -> go.Figure:
+    return _plot_spectrum_NMR_FTIR(obj)
+
+
+@overload
+def _(obj: tuple):
+    ...
+
+
+@spectrum.register
+def _(obj: list) -> go.Figure:
+    if all(isinstance(o, (FTIRDataLoader, NMRDataLoader)) for o in obj):
+        return _plot_spectrum_NMR_FTIR(obj)
+    raise TypeError("Unsupported iterable type")
+
+
+@spectrum.register
+def _(obj: FluorescenceDataLoader,
+      identifier: Union[str, List[str]],
+      plot_type: Literal["1D", "2D"]) -> Union[go.Figure, List[go.Figure]]:
+    return _plot_fluorescence_spectrum(obj, identifier, plot_type)
+
+
+@spectrum.register
+def _(obj: dict,
+      identifier: Union[Dict[str, List[str]], Dict[str, str]],
+      plot_type: Literal["1D", "2D"]) -> Union[go.Figure, List[go.Figure]]:
+    if all(isinstance(v, FluorescenceDataLoader) for v in obj.values()):
+        return _plot_fluorescence_spectrum(obj, identifier, plot_type)
+    raise TypeError("Unsupported dictionary type")
 
 
 def _plot_fluorescence_spectrum(
@@ -161,65 +207,3 @@ def _plot_spectrum_NMR_FTIR(
                 nticks=10 if axis == 'xaxis' else 5
             )})
     return fig
-
-
-@overload
-def spectrum(
-    obj: FTIRDataLoader | NMRDataLoader | Iterable[FTIRDataLoader]
-    | Iterable[NMRDataLoader]
-) -> go.Figure:
-    ...
-
-
-@overload
-def spectrum(
-    obj: FluorescenceDataLoader | Dict[str, FluorescenceDataLoader],
-    identifier: str | List[str] | Dict[str, List[str]] | Dict[str, str],
-    plot_type: Literal["1D", "2D"]
-) -> go.Figure | List[go.Figure]:
-    ...
-
-
-def spectrum(
-    obj: (
-        FTIRDataLoader
-        | NMRDataLoader
-        | FluorescenceDataLoader
-        | Iterable[FTIRDataLoader]
-        | Iterable[NMRDataLoader]
-        | Dict[str, FluorescenceDataLoader]
-    ),
-    identifier: Optional[str
-                         | list[str]
-                         | Dict[str, list[str]]
-                         | Dict[str, str]] = None,
-    plot_type: Optional[Literal["1D", "2D"]] = None
-) -> go.Figure | List[go.Figure]:
-    """
-    Create a spectral plot from FTIR, NMR, or Fluorescence data.
-
-    Args:
-        obj: The data loader object. Can be FTIRDataLoader, NMRDataLoader, or FluorescenceDataLoader.
-        identifier (str, optional): The identifier for the sample (only required for FluorescenceDataLoader).
-        plot_type (str, optional): The type of plot to generate ("1D" or "2D", only required for FluorescenceDataLoader).
-
-    Returns:
-        go.Figure: A plotly figure object.
-
-    Raises:
-        TypeError: If the object type is unsupported.
-        ValueError: If identifier or plot_type is missing for FluorescenceDataLoader.
-    """  # noqa: E501
-    if isinstance(obj, (FTIRDataLoader, NMRDataLoader)) or (
-        isinstance(obj, list) and
-        all(isinstance(o, (FTIRDataLoader, NMRDataLoader)) for o in obj)
-    ):
-        # Route to NMR/FTIR plotting function
-        return _plot_spectrum_NMR_FTIR(obj)
-    if isinstance(obj, (FluorescenceDataLoader, dict)):
-        if not identifier or not plot_type:
-            raise ValueError("For FluorescenceDataLoader, 'identifier' "
-                             "and 'plot_type' are required.")
-        return _plot_fluorescence_spectrum(obj, identifier, plot_type)
-
-    raise TypeError("Unsupported object types")
