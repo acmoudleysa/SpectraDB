@@ -499,7 +499,6 @@ class Database:
             FROM signal_metadata
             WHERE metadata_id = ?
             """
-
         for row in df.itertuples():
             ins_type = row.instrument_id
 
@@ -512,6 +511,11 @@ class Database:
                 dummy_dl_ins = cls(dummyfile,
                                    _load_data_on_init=False)
                 dummy_dl_ins.data = json.loads(row.data)
+
+                with self._get_cursor() as cursor:
+                    cursor.execute(query, (int(row.metadata_id),))
+                    signal_metadata = json.loads(cursor.fetchone()[0])
+
                 dummy_dl_ins.metadata = {
                     "Sample name": row.sample_name,
                     "Signal Metadata": signal_metadata
@@ -522,6 +526,9 @@ class Database:
                 dummy_dl_ins = cls(dummyfile,
                                    _load_data_on_init=False)
                 dummy_dl_ins.data['S1'] = json.loads(row.data)
+                with self._get_cursor() as cursor:
+                    cursor.execute(query, (int(row.metadata_id),))
+                    signal_metadata = json.loads(cursor.fetchone()[0])
                 dummy_dl_ins.metadata['S1'] = {
                         "Sample name": row.sample_name,
                         "Signal Metadata": signal_metadata
