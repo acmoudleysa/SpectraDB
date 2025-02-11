@@ -467,12 +467,13 @@ class Database:
             axis=1)
 
     @validate_dataframe
-    def create_spectrum(self,
-                        sample_ids: str | List[str] = None,
-                        table_name: str = None,
-                        df: pd.DataFrame = None,
-                        fl_plot_type: Literal["1D", "2D"] = "2D"
-                        ) -> go.Figure:
+    def return_dataloader(self,
+                          sample_ids: str | List[str],
+                          table_name: str = None,
+                          df: pd.DataFrame = None
+                          ) -> (NMRDataLoader |
+                                FTIRDataLoader |
+                                FluorescenceDataLoader):
         if df is None:
             if sample_ids is None:
                 raise ValueError("Either df or sample_ids must be provided")
@@ -482,64 +483,81 @@ class Database:
                 if table_name is not None
                 else self.table_name,
                 col_name="sample_id",
-                ordered=True)
-        if len(df.instrument_id.unique()) != 1:
-            raise TypeError("Only one type of spectroscopic method allowed.")
+                ordered=True
+            )
 
-        ins_type = df.iloc[0].instrument_id
         loaders = {
             "NMR": (NMRDataLoader, Path("dummy.txt")),
             "FL": (FluorescenceDataLoader, Path("dummy.csv")),
             "FTIR": (FTIRDataLoader, Path("dummy.spa")),
         }
-        cls, dummyfile = loaders[ins_type]
 
-        # I could use the DummyClass here but the issue was that `spectrum`
-        # only takes instances of dataloaders.
-        dummy_objs = []
+        dataloaders = []
 
         query = """
             SELECT metadata
             FROM signal_metadata
             WHERE metadata_id = ?
             """
-        if ins_type in ["NMR", "FTIR"]:
-            for row in df.itertuples():
+
+        for row in df.itertuples():
+            ins_type = row.instrument_id
+
+            with self._get_cursor() as cursor:
+                cursor.execute(query, (int(row.metadata_id),))
+                signal_metadata = json.loads(cursor.fetchone()[0])
+
+            cls, dummyfile = loaders[ins_type]
+            if ins_type in ["NMR", "FTIR"]:
                 dummy_dl_ins = cls(dummyfile,
                                    _load_data_on_init=False)
                 dummy_dl_ins.data = json.loads(row.data)
-
-                with self._get_cursor() as cursor:
-                    cursor.execute(query, (int(row.metadata_id),))
-                    signal_metadata = json.loads(cursor.fetchone()[0])
-
                 dummy_dl_ins.metadata = {
                     "Sample name": row.sample_name,
                     "Signal Metadata": signal_metadata
                 }
-                dummy_objs.append(dummy_dl_ins)
-            return spectrum(dummy_objs)
+                dataloaders.append(dummy_dl_ins)
 
-        else:
-            for row in df.itertuples():
+            elif ins_type in ["FL"]:
                 dummy_dl_ins = cls(dummyfile,
                                    _load_data_on_init=False)
                 dummy_dl_ins.data['S1'] = json.loads(row.data)
-                with self._get_cursor() as cursor:
-                    cursor.execute(query, (int(row.metadata_id),))
-                    signal_metadata = json.loads(cursor.fetchone()[0])
                 dummy_dl_ins.metadata['S1'] = {
                         "Sample name": row.sample_name,
                         "Signal Metadata": signal_metadata
                     }
-                dummy_objs.append(dummy_dl_ins)
+                dataloaders.append(dummy_dl_ins)
 
-            objs = {f"obj{i}": obj for i, obj in enumerate(dummy_objs,
+        if len(dataloaders) == 1:
+            return dataloaders[0]
+
+        return dataloaders
+
+    def create_spectrum(self,
+                        sample_ids: str | List[str] = None,
+                        table_name: str = None,
+                        df: pd.DataFrame = None,
+                        fl_plot_type: Literal["1D", "2D"] = "2D"
+                        ) -> go.Figure:
+        dataloaders = self.return_dataloader(sample_ids=sample_ids,
+                                             table_name=table_name,
+                                             df=df)
+        if not isinstance(dataloaders, list):
+            dataloaders = [dataloaders]
+
+        elif not all(isinstance(o, type(dataloaders[0])) for o in dataloaders):
+            raise TypeError("Only one type of spectroscopic method allowed.")
+
+        if isinstance(dataloaders[0],
+                      (NMRDataLoader, FTIRDataLoader)):
+            return spectrum(dataloaders)
+        elif isinstance(dataloaders[0], FluorescenceDataLoader):
+            objs = {f"obj{i}": obj for i, obj in enumerate(dataloaders,
                                                            start=1)}
             ids = {f"obj{i}": ["S1"]
-                   for i in range(1, len(dummy_objs)+1)}
+                   for i in range(1, len(dataloaders)+1)}
             return spectrum(
-                obj=objs,
+                objs,
                 identifier=ids,
                 plot_type=fl_plot_type)
 

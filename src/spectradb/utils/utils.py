@@ -7,9 +7,26 @@ from functools import singledispatch
 
 
 @singledispatch
-def spectrum(obj, *args, **kwargs):
-    """Generic spectrum function as a fallback
+def spectrum(obj, **kwargs):
     """
+    Generic spectrum function for dispatching based on object type.
+
+    Parameters:
+    obj (object): The object representing spectral data.
+    This should be passed as a **positional argument**.
+
+    Keyword Arguments:
+    - identifier: (Optional) A string or list of strings
+    - plot_type: (Optional) Type of plot either "1D" or "2D" (default is "1D").
+
+    Raises:
+    TypeError: If the object type is unsupported or incorrectly passed.
+    """
+    if "obj" in kwargs:
+        raise TypeError("The 'obj' argument must be passed "
+                        "as a positional argument, not as a keyword argument. "
+                        "Example: spectrum(FTIRDataLoader())")
+
     raise TypeError(f"Unsupported object type: {type(obj)}")
 
 
@@ -37,24 +54,28 @@ def _(obj: list) -> go.Figure:
 
 @spectrum.register
 def _(obj: FluorescenceDataLoader,
-      identifier: Union[str, List[str]],
-      plot_type: Literal["1D", "2D"]) -> Union[go.Figure, List[go.Figure]]:
+      identifier: Union[str, List[str]] = None,
+      plot_type: Literal["1D", "2D"] = "1D") -> Union[go.Figure,
+                                                      List[go.Figure]]:
     return _plot_fluorescence_spectrum(obj, identifier, plot_type)
 
 
 @spectrum.register
 def _(obj: dict,
-      identifier: Union[Dict[str, List[str]], Dict[str, str]],
-      plot_type: Literal["1D", "2D"]) -> Union[go.Figure, List[go.Figure]]:
+      identifier: Union[Dict[str, List[str]], Dict[str, str]] = None,
+      plot_type: Literal["1D", "2D"] = "1D") -> Union[go.Figure,
+                                                      List[go.Figure]]:
     if all(isinstance(v, FluorescenceDataLoader) for v in obj.values()):
-        return _plot_fluorescence_spectrum(obj, identifier, plot_type)
+        return _plot_fluorescence_spectrum(obj,
+                                           identifier,
+                                           plot_type)
     raise TypeError("Unsupported dictionary type")
 
 
 def _plot_fluorescence_spectrum(
         obj: FluorescenceDataLoader | Dict[str, FluorescenceDataLoader],
         identifier: str | List[str] | Dict[str, List[str]] | Dict[str, str],
-        plot_type: str = "1D") -> go.Figure | List[go.Figure]:
+        plot_type: str) -> go.Figure | List[go.Figure]:
     if plot_type not in ["1D", "2D"]:
         raise ValueError("Type of plot can only be 1D or 2D")
 
