@@ -152,6 +152,7 @@ class FluorescenceDataLoader(BaseDataLoader):
             del self._sample_id_map[identifier]
 
     def add_metadata(self,
+                     *,
                      identifier: str,
                      sample_name: Optional[str] = None,
                      internal_code: Optional[str] = None,
@@ -283,6 +284,7 @@ class FTIRDataLoader(BaseDataLoader):
         return self._df
 
     def add_metadata(self,
+                     *,
                      sample_name: Optional[str] = None,
                      internal_code: Optional[str] = None,
                      collected_by: Optional[str] = None,
@@ -371,6 +373,7 @@ class NMRDataLoader(BaseDataLoader):
         return self._df
 
     def add_metadata(self,
+                     *,
                      sample_name: Optional[str] = None,
                      internal_code: Optional[str] = None,
                      collected_by: Optional[str] = None,

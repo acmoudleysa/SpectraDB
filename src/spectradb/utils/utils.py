@@ -53,7 +53,7 @@ def _(obj: list) -> go.Figure:
 
 
 @spectrum.register
-def _(obj: FluorescenceDataLoader,
+def _(obj: FluorescenceDataLoader, *,
       identifier: Union[str, List[str]] = None,
       plot_type: Literal["1D", "2D"] = "1D") -> Union[go.Figure,
                                                       List[go.Figure]]:
@@ -61,7 +61,7 @@ def _(obj: FluorescenceDataLoader,
 
 
 @spectrum.register
-def _(obj: dict,
+def _(obj: dict, *,
       identifier: Union[Dict[str, List[str]], Dict[str, str]] = None,
       plot_type: Literal["1D", "2D"] = "1D") -> Union[go.Figure,
                                                       List[go.Figure]]:
