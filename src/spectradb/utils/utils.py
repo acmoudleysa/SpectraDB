@@ -127,7 +127,6 @@ def _plot_fluorescence_spectrum(
     elif plot_type == "2D":
         figures = []
         for data, em, ex, name in plot_data:
-            print("HI")
             fig = go.Figure()
             fig.add_trace(go.Contour(
                 z=data,
