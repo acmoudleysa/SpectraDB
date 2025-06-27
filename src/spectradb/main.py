@@ -1,6 +1,7 @@
 import sqlite3
 import json
-from spectradb.dataloaders import (FTIRDataLoader, FluorescenceDataLoader,
+from spectradb.dataloaders import (FTIRDataLoader,
+                                   FluorescenceDataLoader, 
                                    NMRDataLoader)
 from typing import Union, Literal, Optional, List
 from pathlib import Path
@@ -23,18 +24,29 @@ def create_entries(obj):
     """
     return {
         "instrument_id": obj.instrument_id,
-        "measurement_date": obj.metadata['Measurement Date'],
-        "sample_name": obj.metadata["Sample name"]
-        if obj.metadata['Sample name'] is not None else "",
-        "internal_code": obj.metadata["Internal sample code"]
-        if obj.metadata['Internal sample code'] is not None else "",
-        "collected_by": obj.metadata["Collected by"]
-        if obj.metadata['Collected by'] is not None else "",
-        "comments": obj.metadata["Comments"]
-        if obj.metadata['Comments'] is not None else "",
+        "measurement_date": obj.metadata["Measurement Date"],
+        "sample_name": (
+            obj.metadata["Sample name"]
+            if obj.metadata["Sample name"] is not None
+            else ""
+        ),
+        "internal_code": (
+            obj.metadata["Internal sample code"]
+            if obj.metadata["Internal sample code"] is not None
+            else ""
+        ),
+        "collected_by": (
+            obj.metadata["Collected by"]
+            if obj.metadata["Collected by"] is not None
+            else ""
+        ),
+        "comments": (
+            obj.metadata["Comments"]
+            if obj.metadata["Comments"] is not None else ""
+        ),
         "data": json.dumps(obj.data),
         "signal_metadata": json.dumps(obj.metadata["Signal Metadata"]),
-        "date_added": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        "date_added": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
 
@@ -43,18 +55,19 @@ class Database:
     Spectroscopic SQLite database handler.
     """
 
-    def __init__(self,
-                 database: Union[Path, str],
-                 table_name: str = "measurements",
-                 backup: bool = True,
-                 backup_interval: int = True,
-                 max_backups: int = 2
-                 ) -> None:
+    def __init__(
+        self,
+        database: Union[Path, str],
+        table_name: str = "measurements",
+        backup: bool = True,
+        backup_interval: int = True,
+        max_backups: int = 2,
+    ) -> None:
         self.database = database
         self.table_name = table_name
 
         self.backup = backup
-        self.backup_dir = Path(database).parent/"database_backup"
+        self.backup_dir = Path(database).parent / "database_backup"
         self.backup_interval = backup_interval
         self.max_backups = max_backups
         if self.backup:
@@ -78,7 +91,8 @@ class Database:
         """Context manager for database transactions."""
         if not self._connection:
             raise RuntimeError(
-                "Database connection is not established. Use 'with' statement.")  # noqa E501
+                "Database connection is not established. Use 'with' statement."
+            )  # noqa E501
 
         cursor = self._connection.cursor()
         try:
@@ -114,33 +128,33 @@ class Database:
             return
 
         current_time = datetime.now()
-        latest_backup = max(self.backup_dir.glob("*.sqlite"),
-                            default=None,
-                            key=os.path.getctime)
+        latest_backup = max(
+            self.backup_dir.glob("*.sqlite"), default=None, key=os.path.getctime
+        )
 
         if latest_backup:
-            last_backup_time = datetime.fromtimestamp(
-                os.path.getctime(latest_backup)
-            )
-            if (current_time - last_backup_time) < timedelta(hours=self.backup_interval):  # noqa E51
+            last_backup_time = datetime.fromtimestamp(os.path.getctime(latest_backup))
+            if (current_time - last_backup_time) < timedelta(
+                hours=self.backup_interval
+            ):  # noqa E51
                 return
 
         timestamp = current_time.strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"{Path(self.database).stem}_periodic_backup_{timestamp}.sqlite"  # noqa E51
-        backup_path = self.backup_dir/backup_filename
+        backup_filename = (
+            f"{Path(self.database).stem}_periodic_backup_{timestamp}.sqlite"  # noqa E51
+        )
+        backup_path = self.backup_dir / backup_filename
 
         try:
-            shutil.copy2(self.database,
-                         backup_path)
+            shutil.copy2(self.database, backup_path)
             self._manage_backups()
         except Exception as e:
             raise e
 
     def _manage_backups(self):
         backups = sorted(
-            self.backup_dir.glob(
-                f"{Path(self.database).stem}_periodic_backup_*"),
-            key=os.path.getctime
+            self.backup_dir.glob(f"{Path(self.database).stem}_periodic_backup_*"),
+            key=os.path.getctime,
         )
         while len(backups) >= self.max_backups:
             os.remove(backups.pop(0))
@@ -191,10 +205,7 @@ class Database:
             cursor.executescript(query)
 
     def add_sample(
-            self,
-            obj: Union[DataLoaderType, List[DataLoaderType]],
-            *,
-            commit: bool = True
+        self, obj: Union[DataLoaderType, List[DataLoaderType]], *, commit: bool = True
     ) -> None:
         """
         Adds one or more samples to the database.
@@ -205,15 +216,15 @@ class Database:
         """
         self._periodic_backup()
 
-        if isinstance(obj, (FluorescenceDataLoader,
-                            FTIRDataLoader,
-                            NMRDataLoader)):
+        if isinstance(obj, (FluorescenceDataLoader, FTIRDataLoader, NMRDataLoader)):
             obj = [obj]
 
         for idx_obj, instance in enumerate(obj):
             if isinstance(instance, FluorescenceDataLoader):
                 obj.pop(idx_obj)
-                for idx_sample, sample_id in enumerate(instance._sample_id_map):  # noqa: E501
+                for idx_sample, sample_id in enumerate(
+                    instance._sample_id_map
+                ):  # noqa: E501
                     # I can use the dataloader with with _load_data_on_init
                     # as False. But just to simplify things,
                     # I decided to use a simple DummyClass.
@@ -221,9 +232,9 @@ class Database:
                         data=instance.data[sample_id],
                         metadata=instance.metadata[sample_id],
                         instrument_id=instance.instrument_id,
-                        filepath=instance.filepath
+                        filepath=instance.filepath,
                     )
-                    obj.insert(idx_obj+idx_sample, dummy)
+                    obj.insert(idx_obj + idx_sample, dummy)
 
         entries = map(create_entries, obj)
         query1 = f"""
@@ -242,8 +253,7 @@ class Database:
         )
         """
         with self._get_cursor() as cursor:
-            cursor.executemany(query1, [(inst_ins.instrument_id,)
-                                        for inst_ins in obj])
+            cursor.executemany(query1, [(inst_ins.instrument_id,) for inst_ins in obj])
             if commit:
                 self._connection.commit()
 
@@ -253,17 +263,15 @@ class Database:
                 self._connection.commit()
 
     def remove_sample(
-            self,
-            sample_id: str | List[str],
-            *,
-            commit: bool = False) -> None:
+        self, sample_id: str | List[str], *, commit: bool = False
+    ) -> None:
         self._periodic_backup()
 
         if isinstance(sample_id, str):
             sample_id = [sample_id]
 
         # Create the placeholder string dynamically
-        placeholders = ', '.join('?' for _ in sample_id)
+        placeholders = ", ".join("?" for _ in sample_id)
 
         query = f"""
             DELETE FROM {self.table_name}
@@ -288,18 +296,18 @@ class Database:
             self._connection.close()
             self._connection = None
 
-    def fetch_instrument_data(self,
-                              instrument_type: Literal['NMR', 'FTIR', 'FL']) -> pd.DataFrame:  # noqa: E501
+    def fetch_instrument_data(
+        self, instrument_type: Literal["NMR", "FTIR", "FL"]
+    ) -> pd.DataFrame:  # noqa: E501
         query = f"SELECT * FROM {self.table_name} WHERE instrument_id = ? ORDER BY measurement_id"  # noqa: E501
         with self._get_cursor() as cursor:
             cursor.execute(query, (instrument_type,))
             data = cursor.fetchall()
-        return pd.DataFrame(data, columns=[col[0] for
-                                           col in cursor.description])
+        return pd.DataFrame(data, columns=[col[0] for col in cursor.description])
 
-    def fetch_sample_data(self,
-                          sample_info: Union[str, List[str]],
-                          col_name: str = "sample_name") -> pd.DataFrame:
+    def fetch_sample_data(
+        self, sample_info: Union[str, List[str]], col_name: str = "sample_name"
+    ) -> pd.DataFrame:
         if isinstance(sample_info, str):
             sample_info = [sample_info]
 
@@ -310,54 +318,47 @@ class Database:
         with self._get_cursor() as cursor:
             cursor.execute(query, tuple(sample_info))
             data = cursor.fetchall()
-        return pd.DataFrame(data,
-                            columns=[col[0] for col in cursor.description])
+        return pd.DataFrame(data, columns=[col[0] for col in cursor.description])
 
-    def get_data_by_instrument_and_sample(self,
-                                          instrument_type: Literal['NMR', 'FTIR', 'FL'],  # noqa: E501
-                                          sample_name: str) -> pd.DataFrame:
+    def get_data_by_instrument_and_sample(
+        self,
+        instrument_type: Literal["NMR", "FTIR", "FL"],  # noqa: E501
+        sample_name: str,
+    ) -> pd.DataFrame:
         if not isinstance(sample_name, str):
             sample_name = str(sample_name)
         query = f"SELECT * FROM {self.table_name} WHERE instrument_id = ? AND sample_name = ?"  # noqa: E501
         with self._get_cursor() as cursor:
             cursor.execute(query, (instrument_type, sample_name))
             data = cursor.fetchall()
-        return pd.DataFrame(data, columns=[col[0] for
-                                           col in cursor.description])
+        return pd.DataFrame(data, columns=[col[0] for col in cursor.description])
 
-    def execute_custom_query(self,
-                             query: str,
-                             params: Optional[tuple] = None) -> tuple:
+    def execute_custom_query(self, query: str, params: Optional[tuple] = None) -> tuple:
         if query.strip().lower().startswith("select"):
             with self._get_cursor() as cursor:
                 cursor.execute(query, params or ())
                 results = cursor.fetchall()
-                column_names = [description[0] for description
-                                in cursor.description]
+                column_names = [description[0] for description in cursor.description]
                 return results, column_names
         else:
             ValueError("Only SELECT queries are allowed with this method.")
 
     def transform_data_for_analysis(
-            self,
-            instrument_type: Literal[
-                "NMR", "FTIR", "FL"
-            ],
-            reference_sample_id: str = None,
-            output_format: Literal["df",
-                                   "csv"] = "df"
+        self,
+        instrument_type: Literal["NMR", "FTIR", "FL"],
+        reference_sample_id: str = None,
+        output_format: Literal["df", "csv"] = "df",
     ) -> dict | None:
         df = self.fetch_instrument_data(instrument_type)
         instrument_config = {
             "NMR": "ppm",
             "FTIR": "Wavenumbers",
-            "FL": ("Excitation", "Emission")}
+            "FL": ("Excitation", "Emission"),
+        }
 
         key = instrument_config[instrument_type]
 
-        df = self._parse_data(df,
-                              reference_sample_id,
-                              key)
+        df = self._parse_data(df, reference_sample_id, key)
 
         if output_format == "csv":
             output_dir = Path(self.database).parent / "csv_export"
@@ -367,58 +368,55 @@ class Database:
 
         return df
 
-    def _parse_data(self,
-                    df: pd.DataFrame,
-                    reference_id: Optional[str],
-                    metadata_key: str | tuple) -> pd.DataFrame:
+    def _parse_data(
+        self, df: pd.DataFrame, reference_id: Optional[str], metadata_key: str | tuple
+    ) -> pd.DataFrame:
         if reference_id:
             ref_sample = df[df.sample_id == reference_id].iloc[0]
-            ref_metadata = json.loads(ref_sample['signal_metadata'])
+            ref_metadata = json.loads(ref_sample["signal_metadata"])
         else:
-            ref_metadata = json.loads(df.iloc[0]['signal_metadata'])
+            ref_metadata = json.loads(df.iloc[0]["signal_metadata"])
 
         if isinstance(metadata_key, tuple):
             ref_data = {key: ref_metadata[key] for key in metadata_key}
             columns = [
                 f"{ex}EX/{em}EM"
-                for ex, em in
-                product(ref_data[metadata_key[0]], ref_data[metadata_key[1]])
-                ]
+                for ex, em in product(
+                    ref_data[metadata_key[0]], ref_data[metadata_key[1]]
+                )
+            ]
             is_valid = lambda meta: all(  # noqa E731
                 len(meta[key]) == len(ref_data[key]) for key in metadata_key
-                )
-            transform_fn = lambda df: np.array(df  # noqa E731
-                                               .data
-                                               .map(json.loads)
-                                               .tolist()
-                                               ).reshape(df.shape[0],
-                                                         -1)
+            )
+            transform_fn = lambda df: np.array(
+                df.data.map(json.loads).tolist()  # noqa E731
+            ).reshape(df.shape[0], -1)
 
         else:
             ref_data = ref_metadata[metadata_key]
             columns = ref_data
-            is_valid = lambda meta: len(meta[metadata_key]) == len(ref_data)  # noqa E731
-            transform_fn = lambda df: np.vstack(df  # noqa E731
-                                                .data
-                                                .map(json.loads)
-                                                .tolist())
+            is_valid = lambda meta: len(meta[metadata_key]) == len(
+                ref_data
+            )  # noqa E731
+            transform_fn = lambda df: np.vstack(
+                df.data.map(json.loads).tolist()  # noqa E731
+            )
 
-        df_filtered = df[df['signal_metadata'].apply(
-            lambda x: is_valid(json.loads(x)))]
+        df_filtered = df[df["signal_metadata"].apply(lambda x: is_valid(json.loads(x)))]
         data = transform_fn(df_filtered)
-        return pd.concat(objs=[
-            df_filtered[['sample_name', 'internal_code']],
-            pd.DataFrame(data,
-                         columns=columns)],
-                         axis=1)
-
-    def create_spectrum(self,
-                        sample_id: str | List[str],
-                        ) -> go.Figure:
-        df = self.fetch_sample_data(
-            sample_info=sample_id,
-            col_name="sample_id"
+        return pd.concat(
+            objs=[
+                df_filtered[["sample_name", "internal_code"]],
+                pd.DataFrame(data, columns=columns),
+            ],
+            axis=1,
         )
+
+    def create_spectrum(
+        self,
+        sample_id: str | List[str],
+    ) -> go.Figure:
+        df = self.fetch_sample_data(sample_info=sample_id, col_name="sample_id")
         if len(df.instrument_id.unique()) != 1:
             raise TypeError("Only one type of spectroscopic method allowed.")
 
@@ -433,12 +431,11 @@ class Database:
         # I could use the DummyClass here but the issue was that `spectrum`
         # only takes instances of dataloaders.
         for row in df.itertuples():
-            dummy_dl_ins = cls(dummyfile,
-                               _load_data_on_init=False)
+            dummy_dl_ins = cls(dummyfile, _load_data_on_init=False)
             dummy_dl_ins.data = json.loads(row.data)
             dummy_dl_ins.metadata = {
                 "Sample name": row.sample_name,
-                "Signal Metadata": json.loads(row.signal_metadata)
+                "Signal Metadata": json.loads(row.signal_metadata),
             }
             dummy_objs.append(dummy_dl_ins)
         return spectrum(dummy_objs)
@@ -451,6 +448,7 @@ class DummyClass:
     Since fluorescence data comes with multiple rows, ensuring that they are handled properly.
     One class per row.
     """  # noqa: E501
+
     data: list
     metadata: dict
     instrument_id: str

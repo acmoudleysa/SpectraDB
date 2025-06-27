@@ -1,7 +1,3 @@
-from .utils import (
-    spectrum
-)
+from .utils import spectrum
 
-__all__ = [
-    "spectrum"
-]
+__all__ = ["spectrum"]

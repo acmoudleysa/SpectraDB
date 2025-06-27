@@ -1,6 +1,7 @@
 from typing import Dict
 import pandas as pd
-from spectradb.dataloaders.base import (BaseDataLoader, InstrumentID,
+from spectradb.dataloaders.base import (BaseDataLoader,
+                                        InstrumentID,
                                         metadata_template)
 from dataclasses import dataclass, field
 from typing import ClassVar, Optional, List
@@ -74,15 +75,15 @@ class FluorescenceDataLoader(BaseDataLoader):
             # Reset the stream so that read_csv can read from the beginning
             output.seek(0)
 
-        df = (pd.read_csv(output)
-              .dropna(how="all", axis=1)
-              .dropna(how="all", axis=0))
+        df = pd.read_csv(output).dropna(how="all", axis=1).dropna(how="all", axis=0)
 
         # Getting the names of the samples that were analyzed.
         # Preferred over `set` as it preserves order.
-        unique_samples = list(dict.fromkeys([col.split("_EX_")[0].strip()
-                                            for col in df.columns
-                                            if "_EX_" in col]))
+        unique_samples = list(
+            dict.fromkeys(
+                [col.split("_EX_")[0].strip() for col in df.columns if "_EX_" in col]
+            )
+        )
 
         for sample_number, sample in enumerate(unique_samples, start=1):
             sample_id = f"S{sample_number}"
@@ -91,12 +92,18 @@ class FluorescenceDataLoader(BaseDataLoader):
             # Extracting emission wavelengths and excitation wavelengths
             if sample_number == 1:
                 em_wl = df.iloc[1:, 0].astype(float).astype(int).tolist()
-                idx, ex_wl = zip(*[[i+1, wavelengths.split("_EX_")[-1].split(".")[0]]  # noqa: E501
-                                   for i, wavelengths in enumerate(df.columns)
-                                   if sample + "_EX_" in wavelengths])
+                idx, ex_wl = zip(
+                    *[
+                        [
+                            i + 1,
+                            wavelengths.split("_EX_")[-1].split(".")[0],
+                        ]  # noqa: E501
+                        for i, wavelengths in enumerate(df.columns)
+                        if sample + "_EX_" in wavelengths
+                    ]
+                )
             else:
-                idx = [i+1 for i, _ in enumerate(df.columns)
-                       if sample + "_EX_" in _]
+                idx = [i + 1 for i, _ in enumerate(df.columns) if sample + "_EX_" in _]
 
             # Using metadata template function to create the metadata entry
             self.metadata[sample_id] = metadata_template(
@@ -104,14 +111,13 @@ class FluorescenceDataLoader(BaseDataLoader):
                 sample_name=sample,
                 signal_metadata={
                     "Excitation": np.array(ex_wl, dtype=int).tolist(),
-                    "Emission": em_wl
-                }
+                    "Emission": em_wl,
+                },
             )
             # Storing actual fluorescence data for each sample
-            self.data[sample_id] = (df.iloc[1:, list(idx)]
-                                    .to_numpy(dtype=np.float32)
-                                    .T
-                                    .tolist())
+            self.data[sample_id] = (
+                df.iloc[1:, list(idx)].to_numpy(dtype=np.float32).T.tolist()
+            )
 
         print(self)
 
@@ -123,20 +129,23 @@ class FluorescenceDataLoader(BaseDataLoader):
         for sample_id, metadata in self.metadata.items():
             data.append(metadata | {"Data": self.data[sample_id]})
 
-        self._df = pd.DataFrame(data,
-                                columns=["Filename",
-                                         "Measurement Date",
-                                         "Sample name",
-                                         "Internal sample code",
-                                         "Collected by",
-                                         "Comments",
-                                         "Data",
-                                         "Signal Metadata"],
-                                index=self.metadata.keys())
+        self._df = pd.DataFrame(
+            data,
+            columns=[
+                "Filename",
+                "Measurement Date",
+                "Sample name",
+                "Internal sample code",
+                "Collected by",
+                "Comments",
+                "Data",
+                "Signal Metadata",
+            ],
+            index=self.metadata.keys(),
+        )
         return self._df
 
-    def delete_measurement(self,
-                           identifiers: str | List[str]) -> None:
+    def delete_measurement(self, identifiers: str | List[str]) -> None:
         """
         Method to delete a measurement using identifier name
         """
@@ -144,19 +153,23 @@ class FluorescenceDataLoader(BaseDataLoader):
             identifiers = [identifiers]
         non_existent = [id for id in identifiers if id not in self.metadata]
         if non_existent:
-            raise KeyError(f"Sample identifier(s) not found: {', '.join(non_existent)}")  # noqa E501
+            raise KeyError(
+                f"Sample identifier(s) not found: {', '.join(non_existent)}"
+            )  # noqa E501
 
         for identifier in identifiers:
             del self.metadata[identifier]
             del self.data[identifier]
             del self._sample_id_map[identifier]
 
-    def add_metadata(self,
-                     identifier: str,
-                     sample_name: Optional[str] = None,
-                     internal_code: Optional[str] = None,
-                     collected_by: Optional[str] = None,
-                     comments: Optional[str] = None) -> None:
+    def add_metadata(
+        self,
+        identifier: str,
+        sample_name: Optional[str] = None,
+        internal_code: Optional[str] = None,
+        collected_by: Optional[str] = None,
+        comments: Optional[str] = None,
+    ) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
@@ -165,13 +178,13 @@ class FluorescenceDataLoader(BaseDataLoader):
 
         sample_metadata = self.metadata[identifier]
         if sample_name is not None:
-            sample_metadata['Sample name'] = sample_name
+            sample_metadata["Sample name"] = sample_name
         if internal_code is not None:
-            sample_metadata['Internal sample code'] = internal_code
+            sample_metadata["Internal sample code"] = internal_code
         if collected_by is not None:
-            sample_metadata['Collected by'] = collected_by
+            sample_metadata["Collected by"] = collected_by
         if comments is not None:
-            sample_metadata['Comments'] = comments
+            sample_metadata["Comments"] = comments
 
     def validate_data(self) -> None:
         """
@@ -184,8 +197,9 @@ class FluorescenceDataLoader(BaseDataLoader):
             ValueError: If the input file is not a CSV.
         """
         if self.filepath.suffix.lower() != ".csv":
-            raise ValueError("Invalid file extension! "
-                             "Make sure the data being fed is a CSV.")
+            raise ValueError(
+                "Invalid file extension! " "Make sure the data being fed is a CSV."
+            )
 
     def __str__(self) -> str:
         """
@@ -193,17 +207,23 @@ class FluorescenceDataLoader(BaseDataLoader):
         corresponding names in a table format with borders.
         """
         header = f"| {'Identifier':<10} | {'Sample Name':<45} |"
-        separator = '+' + '-' * (len(header) - 2) + '+'
+        separator = "+" + "-" * (len(header) - 2) + "+"
 
-        sample_rows = [f"| {sample_id:<10} | {sample_name:<45} |"
-                       for sample_id, sample_name
-                       in self._sample_id_map.items()]
+        sample_rows = [
+            f"| {sample_id:<10} | {sample_name:<45} |"
+            for sample_id, sample_name in self._sample_id_map.items()
+        ]
 
-        table = f"{separator}\n{header}\n{separator}\n" + "\n"\
-            .join(sample_rows) + f"\n{separator}"
+        table = (
+            f"{separator}\n{header}\n{separator}\n"
+            + "\n".join(sample_rows)
+            + f"\n{separator}"
+        )
 
-        return (f"Data generated from Agilent Cary Eclipse fluorescence "
-                f"spectrometer\nFile: {self.filepath.stem}\nSamples:\n{table}")
+        return (
+            f"Data generated from Agilent Cary Eclipse fluorescence "
+            f"spectrometer\nFile: {self.filepath.stem}\nSamples:\n{table}"
+        )
 
     @property
     def df(self) -> pd.DataFrame:
@@ -235,7 +255,7 @@ class FTIRDataLoader(BaseDataLoader):
         super(FTIRDataLoader, self).__post_init__()
 
     def load_data(self) -> Dict:
-        with open(self.filepath, "rb") as file:   # reading in binary
+        with open(self.filepath, "rb") as file:  # reading in binary
             # spectrum resolution
             file.seek(564)
             num_wn_points = np.fromfile(file, np.int32, 1)[0]
@@ -258,10 +278,12 @@ class FTIRDataLoader(BaseDataLoader):
             self.metadata = metadata_template(
                 filepath=self.filepath,
                 signal_metadata={
-                    "Wavenumbers": np.linspace(wavenumbers_min,
-                                               wavenumbers_max,
-                                               num_wn_points)[::-1].astype(int).tolist()  # noqa: E501
-                }
+                    "Wavenumbers": np.linspace(
+                        wavenumbers_min, wavenumbers_max, num_wn_points
+                    )[::-1]
+                    .astype(int)
+                    .tolist()  # noqa: E501
+                },
             )
         print(self)
 
@@ -270,39 +292,47 @@ class FTIRDataLoader(BaseDataLoader):
         Create a pandas DataFrame from the loaded fluorescence data.
         """
         data = [self.metadata | {"Data": self.data}]
-        self._df = pd.DataFrame(data,
-                                columns=["Filename",
-                                         "Measurement Date",
-                                         "Sample name",
-                                         "Internal sample code",
-                                         "Collected by",
-                                         "Comments",
-                                         "Data",
-                                         "Signal Metadata"],
-                                index=pd.Index(["S1"]))
+        self._df = pd.DataFrame(
+            data,
+            columns=[
+                "Filename",
+                "Measurement Date",
+                "Sample name",
+                "Internal sample code",
+                "Collected by",
+                "Comments",
+                "Data",
+                "Signal Metadata",
+            ],
+            index=pd.Index(["S1"]),
+        )
         return self._df
 
-    def add_metadata(self,
-                     sample_name: Optional[str] = None,
-                     internal_code: Optional[str] = None,
-                     collected_by: Optional[str] = None,
-                     comments: Optional[str] = None) -> None:
+    def add_metadata(
+        self,
+        sample_name: Optional[str] = None,
+        internal_code: Optional[str] = None,
+        collected_by: Optional[str] = None,
+        comments: Optional[str] = None,
+    ) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
         if sample_name is not None:
-            self.metadata['Sample name'] = sample_name
+            self.metadata["Sample name"] = sample_name
         if internal_code is not None:
-            self.metadata['Internal sample code'] = internal_code
+            self.metadata["Internal sample code"] = internal_code
         if collected_by is not None:
-            self.metadata['Collected by'] = collected_by
+            self.metadata["Collected by"] = collected_by
         if comments is not None:
-            self.metadata['Comments'] = comments
+            self.metadata["Comments"] = comments
 
     def validate_data(self) -> None:
         if self.filepath.suffix.lower() != ".spa":
-            raise ValueError("Invalid file extension! "
-                             "Make sure the data being fed has extension .spa")
+            raise ValueError(
+                "Invalid file extension! "
+                "Make sure the data being fed has extension .spa"
+            )
 
     def __str__(self) -> None:
         """
@@ -346,11 +376,9 @@ class NMRDataLoader(BaseDataLoader):
         data = np.loadtxt(self.filepath, skiprows=1, delimiter=",")
         self.data = data[:, 1].astype(np.float32).tolist()
         self.metadata = metadata_template(
-                filepath=self.filepath,
-                signal_metadata={
-                    "ppm": data[:, -1].astype(np.float32).tolist()
-                }
-            )
+            filepath=self.filepath,
+            signal_metadata={"ppm": data[:, -1].astype(np.float32).tolist()},
+        )
         print(self)
 
     def _create_dataframe(self) -> pd.DataFrame:
@@ -358,39 +386,47 @@ class NMRDataLoader(BaseDataLoader):
         Create a pandas DataFrame from the loaded fluorescence data.
         """
         data = [self.metadata | {"Data": self.data}]
-        self._df = pd.DataFrame(data,
-                                columns=["Filename",
-                                         "Measurement Date",
-                                         "Sample name",
-                                         "Internal sample code",
-                                         "Collected by",
-                                         "Comments",
-                                         "Data",
-                                         "Signal Metadata"],
-                                index=pd.Index(["S1"]))
+        self._df = pd.DataFrame(
+            data,
+            columns=[
+                "Filename",
+                "Measurement Date",
+                "Sample name",
+                "Internal sample code",
+                "Collected by",
+                "Comments",
+                "Data",
+                "Signal Metadata",
+            ],
+            index=pd.Index(["S1"]),
+        )
         return self._df
 
-    def add_metadata(self,
-                     sample_name: Optional[str] = None,
-                     internal_code: Optional[str] = None,
-                     collected_by: Optional[str] = None,
-                     comments: Optional[str] = None) -> None:
+    def add_metadata(
+        self,
+        sample_name: Optional[str] = None,
+        internal_code: Optional[str] = None,
+        collected_by: Optional[str] = None,
+        comments: Optional[str] = None,
+    ) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
         if sample_name is not None:
-            self.metadata['Sample name'] = sample_name
+            self.metadata["Sample name"] = sample_name
         if internal_code is not None:
-            self.metadata['Internal sample code'] = internal_code
+            self.metadata["Internal sample code"] = internal_code
         if collected_by is not None:
-            self.metadata['Collected by'] = collected_by
+            self.metadata["Collected by"] = collected_by
         if comments is not None:
-            self.metadata['Comments'] = comments
+            self.metadata["Comments"] = comments
 
     def validate_data(self) -> None:
         if self.filepath.suffix.lower() != ".txt":
-            raise ValueError("Invalid file extension! "
-                             "Make sure the data being fed has extension .txt")
+            raise ValueError(
+                "Invalid file extension! "
+                "Make sure the data being fed has extension .txt"
+            )
 
     def __str__(self) -> None:
         """

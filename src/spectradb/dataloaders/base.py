@@ -12,10 +12,12 @@ class InstrumentID(Enum):
     """
     Enum class that stores the id of the instruments
     """
+
     FTIR = "FTIR"
     NMR = "NMR"
     Fluorescence = "FL"
     RAMAN = "RAMAN"
+    NIR = "NIR"
 
 
 @dataclass(slots=True)
@@ -31,6 +33,7 @@ class BaseDataLoader(ABC):
         df (pd.DataFrame): DataFrame for structured data representation.
         metadata (Dict): Dictionary to store metadata information.
     """
+
     filepath: Path
     _load_data_on_init: bool = True
 
@@ -44,8 +47,10 @@ class BaseDataLoader(ABC):
         Ensures filepath is a string or Path object.
         """
         if not isinstance(self.filepath, (str, Path)):
-            raise TypeError(f"Expected filepath to be of type str or Path,\
-                            got {type(self.filepath).__name__}")
+            raise TypeError(
+                f"Expected filepath to be of type str or Path,\
+                            got {type(self.filepath).__name__}"
+            )
         self.filepath = Path(self.filepath)
         self.validate_data()
         if self._load_data_on_init:
@@ -72,11 +77,13 @@ class BaseDataLoader(ABC):
         pass
 
     @abstractmethod
-    def add_metadata(self,
-                     sample_name: Optional[str] = None,
-                     internal_code: Optional[str] = None,
-                     collected_by: Optional[str] = None,
-                     comments: Optional[str] = None):
+    def add_metadata(
+        self,
+        sample_name: Optional[str] = None,
+        internal_code: Optional[str] = None,
+        collected_by: Optional[str] = None,
+        comments: Optional[str] = None,
+    ):
         """
         Add or update metadata for the loaded data.
 
@@ -105,18 +112,19 @@ class BaseDataLoader(ABC):
         """
         pass
 
-    def to_csv(self,
-               path: Union[str, Path] = None) -> None:
+    def to_csv(self, path: Union[str, Path] = None) -> None:
         path = path or Path("processed_" + self.filepath.stem + ".csv")
         self._df.to_csv(path)
 
 
-def metadata_template(filepath: str,
-                      sample_name: Optional[str] = None,
-                      internal_code: Optional[str] = None,
-                      collected_by: Optional[str] = None,
-                      comments: Optional[str] = None,
-                      signal_metadata: Optional[Dict] = None) -> dict:
+def metadata_template(
+    filepath: str,
+    sample_name: Optional[str] = None,
+    internal_code: Optional[str] = None,
+    collected_by: Optional[str] = None,
+    comments: Optional[str] = None,
+    signal_metadata: Optional[Dict] = None,
+) -> dict:
     """
     Generate a metadata template for a given sample.
 
@@ -132,12 +140,13 @@ def metadata_template(filepath: str,
         dict: A dictionary containing the metadata template.
     """
     return {
-        "Measurement Date": datetime.fromtimestamp(os.path.getmtime(filepath))
-        .strftime("%Y-%m-%d"),
+        "Measurement Date": datetime.fromtimestamp(os.path.getmtime(filepath)).strftime(
+            "%Y-%m-%d"
+        ),
         "Filename": os.path.basename(filepath),
         "Sample name": sample_name,
         "Internal sample code": internal_code,
         "Collected by": collected_by,
         "Comments": comments,
-        "Signal Metadata": signal_metadata
+        "Signal Metadata": signal_metadata,
     }

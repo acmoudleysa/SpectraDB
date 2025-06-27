@@ -1,7 +1,7 @@
 # Variables
 PYTHON = python
 VENV_DIR = env
-REQUIREMENTS = requirements.txt
+REQUIREMENTS = requirements_dev.txt
 SRC_DIR = src
 TEST_DIR = tests
 
@@ -23,23 +23,25 @@ help:
 setup:
 	@echo "Setting up the virtual environment..."
 	$(PYTHON) -m venv $(VENV_DIR)
-	source $(VENV_DIR)/bin/activate && pip install --upgrade pip && pip install -r $(REQUIREMENTS)
+	source $(VENV_DIR)/Scripts/activate && pip install -r $(REQUIREMENTS)
 	@echo "Setup complete."
 
 # Lint the source code
 lint:
 	@echo "Running lint checks..."
-	source $(VENV_DIR)/bin/activate && flake8 $(SRC_DIR)
+	source $(VENV_DIR)/Scripts/activate && flake8 $(SRC_DIR)
 	@echo "Linting complete."
 
 # Run tests
 test:
 	@echo "Running tests..."
-	source $(VENV_DIR)/bin/activate && pytest $(TEST_DIR)
+	source $(VENV_DIR)/Scripts/activate && pytest $(TEST_DIR)
 	@echo "Testing complete."
 
 # Clean up generated files
 clean:
 	@echo "Cleaning up..."
-	rm -rf $(VENV_DIR) __pycache__ .pytest_cache *.pyc *.pyo
+	rm -rf $(VENV_DIR)
+	rm -rf **/__pycache__ **/*.pyc **/*.pyo
+	rm -rf build/ dist/ *.egg-info/
 	@echo "Cleanup complete."

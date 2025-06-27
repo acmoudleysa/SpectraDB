@@ -1,3 +1,54 @@
 [build-system]
 requires = ["setuptools>=40.8.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectradb"
+version = "1.0.4"
+description = "A Lightweight Spectroscopic Data Manager"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Amulya Baniya", email = "ronaldoamulya@gmail.com" }
+]
+
+keywords = ["spectradb", "ftir", "fluorescence", "2dfluorescence", "nmr", "chemometrics"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.9",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.9, <4"
+dependencies = [
+    "numpy",
+    "pandas",
+    "plotly",
+    "plotly-express"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["spectradb"]
+
+[options.packages.find]
+exclude = ["tests*", "test*"]
+
+
+[project.urls]
+Homepage = "https://github.com/acmoudleysa/SpectraDB"
+Repository = "https://github.com/acmoudleysa/SpectraDB"
+Documentation = "https://github.com/acmoudleysa/SpectraDB"
+"Bug Tracker" = "https://github.com/acmoudleysa/SpectraDB/issues"
+
+[tool.flake8]
+max-line-length = 79
+
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--maxfail=5 --disable-warnings -q"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
