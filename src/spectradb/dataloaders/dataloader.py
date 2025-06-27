@@ -162,6 +162,7 @@ class FluorescenceDataLoader(BaseDataLoader):
             del self.data[identifier]
             del self._sample_id_map[identifier]
 
+<<<<<<< HEAD
     def add_metadata(
         self,
         identifier: str,
@@ -170,6 +171,15 @@ class FluorescenceDataLoader(BaseDataLoader):
         collected_by: Optional[str] = None,
         comments: Optional[str] = None,
     ) -> None:
+=======
+    def add_metadata(self,
+                     *,
+                     identifier: str,
+                     sample_name: Optional[str] = None,
+                     internal_code: Optional[str] = None,
+                     collected_by: Optional[str] = None,
+                     comments: Optional[str] = None) -> None:
+>>>>>>> a64c8437b8c6743b1f6032e236cc0d4e99dbc3ac
         """
         Add or update metadata for a given sample identifier.
         """
@@ -308,6 +318,7 @@ class FTIRDataLoader(BaseDataLoader):
         )
         return self._df
 
+<<<<<<< HEAD
     def add_metadata(
         self,
         sample_name: Optional[str] = None,
@@ -315,6 +326,14 @@ class FTIRDataLoader(BaseDataLoader):
         collected_by: Optional[str] = None,
         comments: Optional[str] = None,
     ) -> None:
+=======
+    def add_metadata(self,
+                     *,
+                     sample_name: Optional[str] = None,
+                     internal_code: Optional[str] = None,
+                     collected_by: Optional[str] = None,
+                     comments: Optional[str] = None) -> None:
+>>>>>>> a64c8437b8c6743b1f6032e236cc0d4e99dbc3ac
         """
         Add or update metadata for a given sample identifier.
         """
@@ -388,6 +407,7 @@ class NIRDataLoader(BaseDataLoader):
 
     def add_metadata(
         self,
+        *,
         sample_name: Optional[str] = None,
         internal_code: Optional[str] = None,
         collected_by: Optional[str] = None,
@@ -480,13 +500,12 @@ class NMRDataLoader(BaseDataLoader):
         )
         return self._df
 
-    def add_metadata(
-        self,
-        sample_name: Optional[str] = None,
-        internal_code: Optional[str] = None,
-        collected_by: Optional[str] = None,
-        comments: Optional[str] = None,
-    ) -> None:
+    def add_metadata(self,
+                     *,
+                     sample_name: Optional[str] = None,
+                     internal_code: Optional[str] = None,
+                     collected_by: Optional[str] = None,
+                     comments: Optional[str] = None) -> None:
         """
         Add or update metadata for a given sample identifier.
         """
